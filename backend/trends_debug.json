@@ -1,0 +1,132 @@
+{
+    "macro_trends": [
+        "AI Tech",
+        "Market Shifts",
+        "Global News"
+    ],
+    "google": [
+        {
+            "title": "ridley scott",
+            "score": "200+",
+            "region": "US"
+        },
+        {
+            "title": "mormon church",
+            "score": "200+",
+            "region": "US"
+        },
+        {
+            "title": "magda linette",
+            "score": "200+",
+            "region": "US"
+        },
+        {
+            "title": "mental health",
+            "score": "200+",
+            "region": "US"
+        },
+        {
+            "title": "the walking dead",
+            "score": "500+",
+            "region": "US"
+        },
+        {
+            "title": "ind vs afg",
+            "score": "2000+",
+            "region": "US"
+        },
+        {
+            "title": "athletics",
+            "score": "1000+",
+            "region": "US"
+        },
+        {
+            "title": "judge angel kelley park ruling",
+            "score": "2000+",
+            "region": "US"
+        },
+        {
+            "title": "giants game",
+            "score": "500+",
+            "region": "US"
+        },
+        {
+            "title": "flu shots",
+            "score": "5000+",
+            "region": "US"
+        },
+        {
+            "title": "duke of edinburgh",
+            "score": "200+",
+            "region": "GB"
+        },
+        {
+            "title": "duchess of edinburgh",
+            "score": "200+",
+            "region": "GB"
+        },
+        {
+            "title": "miles davis",
+            "score": "200+",
+            "region": "GB"
+        },
+        {
+            "title": "united transfer",
+            "score": "2000+",
+            "region": "GB"
+        },
+        {
+            "title": "action",
+            "score": "500+",
+            "region": "GB"
+        }
+    ],
+    "reddit": [
+        {
+            "title": "That\u2019s exactly what he is.",
+            "score": "\u25b2 Popular"
+        },
+        {
+            "title": "An American photographer filmed a wolf begging for food from a grizzly. The gray wolf saw the meat and in an instant turned into a playful puppy begging for a piece.",
+            "score": "\u25b2 Popular"
+        },
+        {
+            "title": "the dutch are suing steam for being a monopoly right now",
+            "score": "\u25b2 Popular"
+        },
+        {
+            "title": "A duck wearing mexico jersey celebrating their win",
+            "score": "\u25b2 Popular"
+        },
+        {
+            "title": "Fireworks celebrating the completion of the 566ft Tower of Jesus Christ at the Sagrada Fam\u00edlia",
+            "score": "\u25b2 Popular"
+        },
+        {
+            "title": "A cockroach burrowed into my head",
+            "score": "\u25b2 Popular"
+        },
+        {
+            "title": "A horse asking another horse to help remove his muzzle so he can eat grass",
+            "score": "\u25b2 Popular"
+        },
+        {
+            "title": "Burger King",
+            "score": "\u25b2 Popular"
+        },
+        {
+            "title": "Mexicans dancing and singing Gangnam Style with Koreans after South Korea's victory in the World Cup",
+            "score": "\u25b2 Popular"
+        },
+        {
+            "title": "\ud83e\udee1",
+            "score": "\u25b2 Popular"
+        }
+    ],
+    "x": [
+        {
+            "title": "Twitter/X trends rate-limited",
+            "score": "Offline"
+        }
+    ]
+}

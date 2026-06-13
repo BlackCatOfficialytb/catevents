@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CatEvents // Aggregate Trend Engine</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="p-4 md:p-8 font-sans">
+
+    <header class="max-w-7xl mx-auto mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-gray-800 pb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-green-400 font-mono flex items-center gap-2">
+                <span>🐱</span> CatEvents <span class="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded">WIP</span>
+            </h1>
+            <p class="text-xs text-gray-400 mt-1">Multi-network real-time trend aggregator</p>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <!-- Connection Status -->
+            <span id="status-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-900 text-yellow-300">
+                Initializing...
+            </span>
+            <!-- Refresh Button -->
+            <button id="refresh-btn" class="p-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition duration-200" title="Refresh Data">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.253 8H18"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- Offline/Fallback Notice (Hidden by default, shown dynamically via JS when backend is missing) -->
+        <div id="demo-notice" class="hidden"></div>
+
+        <!-- Macro Trends / Hot Topics Section -->
+        <div class="card p-6 rounded-lg">
+            <h2 class="text-xs font-semibold tracking-wider text-gray-400 uppercase mb-3">Cross-Platform Hot Topics</h2>
+            <div id="hot-tags" class="flex flex-wrap gap-2">
+                <!-- Skeletons render during load -->
+                <div class="skeleton w-24 h-7 rounded"></div>
+                <div class="skeleton w-16 h-7 rounded"></div>
+                <div class="skeleton w-20 h-7 rounded"></div>
+            </div>
+        </div>
+
+        <!-- Platform Specific Columns -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Reddit Column -->
+            <div class="card p-4 rounded-lg flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-2 mb-4">
+                        <h3 class="font-bold text-orange-500 font-mono">r/All Velocity</h3>
+                        <span class="text-xs text-gray-500">Subreddit Scrape</span>
+                    </div>
+                    <ul id="reddit-trends" class="space-y-3 text-sm min-h-[250px]">
+                        <!-- Skeleton loading lines -->
+                        <li class="skeleton w-full h-9 rounded"></li>
+                        <li class="skeleton w-full h-9 rounded"></li>
+                        <li class="skeleton w-full h-9 rounded"></li>
+                        <li class="skeleton w-full h-9 rounded"></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- X Column -->
+            <div class="card p-4 rounded-lg flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-2 mb-4">
+                        <h3 class="font-bold text-blue-400 font-mono">X-Metrics</h3>
+                        <span class="text-xs text-gray-500">Nitter Mirror</span>
+                    </div>
+                    <ul id="x-trends" class="space-y-3 text-sm min-h-[250px]">
+                        <li class="skeleton w-full h-9 rounded"></li>
+                        <li class="skeleton w-full h-9 rounded"></li>
+                        <li class="skeleton w-full h-9 rounded"></li>
+                        <li class="skeleton w-full h-9 rounded"></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Google Trends Column -->
+            <div class="card p-4 rounded-lg flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between border-b border-gray-800 pb-2 mb-4">
+                        <h3 class="font-bold text-red-400 font-mono">Search Signals</h3>
+                        <span class="text-xs text-gray-500">Google RSS Engine</span>
+                    </div>
+                    <ul id="google-trends" class="space-y-3 text-sm min-h-[250px]">
+                        <li class="skeleton w-full h-9 rounded"></li>
+                        <li class="skeleton w-full h-9 rounded"></li>
+                        <li class="skeleton w-full h-9 rounded"></li>
+                        <li class="skeleton w-full h-9 rounded"></li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="text-center py-12 text-sm text-gray-500 space-y-2">
+        <p>Made with 💖 by <a href="https://blackcatofficial.qzz.io" target="_blank" rel="noopener noreferrer" class="text-green-500 hover:underline">BlackCat</a> in Vietnam</p>
+        <p>Only frontends built by AI, Backends built my be w/o AI</p>
+    </footer>
+
+    <!-- Custom Script -->
+    <script src="script.js" defer></script>
+</body>
+</html>

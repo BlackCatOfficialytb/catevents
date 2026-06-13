@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scraper Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+
+    <!-- Navigation Bar -->
+    <nav class="bg-slate-800 border-b border-slate-700 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span class="text-xl font-bold tracking-wide">Scraper.io Admin</span>
+            </div>
+            <div class="text-xs text-slate-400 font-mono">
+                Running via Gunicorn
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        
+        <!-- Top Statistics Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Hugging Face Config -->
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                <span class="text-xs font-semibold uppercase text-slate-400 tracking-wider">Target Repo</span>
+                <p class="text-lg font-bold mt-2 text-indigo-400 truncate">{{ repo_id }}</p>
+                <p class="text-xs text-slate-500 mt-1">Hugging Face Datasets hub</p>
+            </div>
+            <!-- Connection Check -->
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+                <span class="text-xs font-semibold uppercase text-slate-400 tracking-wider">Upload Token</span>
+                <div class="flex items-center mt-2 space-x-2">
+                    {% if hf_token_active %}
+                        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        <p class="text-lg font-bold text-slate-200">Active (Authorized)</p>
+                    {% else %}
+                        <span class="h-2 w-2 rounded-full bg-amber-500"></span>
+                        <p class="text-lg font-bold text-amber-400">Offline / Debug Mode</p>
+                    {% endif %}
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Identified from system environment variables</p>
+            </div>
+            <!-- System Controls -->
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg flex flex-col justify-between">
+                <div>
+                    <span class="text-xs font-semibold uppercase text-slate-400 tracking-wider">Manual Override</span>
+                    <p class="text-xs text-slate-500 mt-1">Force an on-demand scraper run immediately.</p>
+                </div>
+                <button id="trigger-scrape-btn" onclick="executeScraper()" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] transition-all text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center space-x-2">
+                    <span id="btn-text">Execute Scraper</span>
+                    <!-- Spinner SVG (hidden by default) -->
+                    <svg id="btn-spinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2005/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Scraping Status Feedback Panel -->
+        <div id="status-panel" class="hidden mb-8 p-4 rounded-xl border flex items-start space-x-3 shadow-md">
+            <div id="status-icon" class="mt-0.5 font-bold"></div>
+            <div>
+                <p id="status-title" class="font-semibold text-sm"></p>
+                <p id="status-desc" class="text-xs text-slate-400 mt-0.5"></p>
+            </div>
+        </div>
+
+        <!-- Latest Data Overview -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 shadow-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-lg font-bold tracking-tight">Latest Scraped Cache</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Displays local JSON payloads and feeds currently generated.</p>
+                </div>
+                <button onclick="toggleRawView()" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300">
+                    Toggle Raw JSON
+                </button>
+            </div>
+
+            <!-- Visual Card Representation -->
+            <div id="visual-cards" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Google Trends Card -->
+                <div class="bg-slate-900 rounded-lg p-4 border border-slate-700/50">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-sm text-slate-200">Google Trends (US)</h3>
+                        <span class="text-[10px] uppercase bg-slate-800 text-indigo-300 px-2 py-0.5 rounded font-mono">RSS</span>
+                    </div>
+                    <ul class="space-y-2 text-xs">
+                        {% for item in latest_data.get('google', [])[:5] %}
+                        <li class="flex justify-between py-1 border-b border-slate-800 last:border-0 text-slate-300">
+                            <span class="truncate pr-4 w-4/5">{{ item.title }}</span>
+                            <span class="text-slate-500 font-mono shrink-0">{{ item.score }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- Reddit Popular Card -->
+                <div class="bg-slate-900 rounded-lg p-4 border border-slate-700/50">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-sm text-slate-200">Reddit Popular</h3>
+                        <span class="text-[10px] uppercase bg-slate-800 text-indigo-300 px-2 py-0.5 rounded font-mono">Atom</span>
+                    </div>
+                    <ul class="space-y-2 text-xs">
+                        {% for item in latest_data.get('reddit', [])[:5] %}
+                        <li class="flex justify-between py-1 border-b border-slate-800 last:border-0 text-slate-300">
+                            <span class="truncate pr-4 w-4/5">{{ item.title }}</span>
+                            <span class="text-emerald-500 shrink-0 font-mono">{{ item.score }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- X Trends Card -->
+                <div class="bg-slate-900 rounded-lg p-4 border border-slate-700/50">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-sm text-slate-200">X Trends (Nitter Search)</h3>
+                        <span class="text-[10px] uppercase bg-slate-800 text-indigo-300 px-2 py-0.5 rounded font-mono">Proxy RSS</span>
+                    </div>
+                    <ul class="space-y-2 text-xs">
+                        {% for item in latest_data.get('x', [])[:5] %}
+                        <li class="flex justify-between py-1 border-b border-slate-800 last:border-0 text-slate-300">
+                            <span class="truncate pr-4 w-4/5">{{ item.title }}</span>
+                            <span class="text-amber-500 shrink-0 font-mono">{{ item.score }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Collapsible Raw JSON Container -->
+            <div id="raw-json-container" class="hidden mt-6">
+                <pre class="bg-slate-950 text-emerald-400 p-4 rounded-lg overflow-x-auto text-xs font-mono border border-slate-800 max-h-[400px]">{{ raw_json }}</pre>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- JavaScript Actions -->
+    <script>
+        function toggleRawView() {
+            const el = document.getElementById("raw-json-container");
+            el.classList.toggle("hidden");
+        }
+
+        async function executeScraper() {
+            const btn = document.getElementById("trigger-scrape-btn");
+            const btnText = document.getElementById("btn-text");
+            const btnSpinner = document.getElementById("btn-spinner");
+            const statusPanel = document.getElementById("status-panel");
+            const statusIcon = document.getElementById("status-icon");
+            const statusTitle = document.getElementById("status-title");
+            const statusDesc = document.getElementById("status-desc");
+
+            // UI Loading State
+            btn.disabled = true;
+            btnText.classList.add("hidden");
+            btnSpinner.classList.remove("hidden");
+
+            try {
+                // Request the endpoint
+                const response = await fetch("/run-scrape");
+                const data = await response.json();
+
+                statusPanel.classList.remove("hidden");
+                if (response.ok) {
+                    // Success layout styling
+                    statusPanel.className = "mb-8 p-4 rounded-xl border border-emerald-500/30 bg-emerald-950/20 text-emerald-300 flex items-start space-x-3 shadow-md";
+                    statusIcon.innerText = "✓";
+                    statusTitle.innerText = "Scrape Successful";
+                    statusDesc.innerText = `Dataset payload processed. Status: ${data.status}. Message: ${data.message || 'Saved locally'}`;
+                } else {
+                    // Error layout styling
+                    statusPanel.className = "mb-8 p-4 rounded-xl border border-red-500/30 bg-red-950/20 text-red-300 flex items-start space-x-3 shadow-md";
+                    statusIcon.innerText = "⚠";
+                    statusTitle.innerText = "Scrape Failed";
+                    statusDesc.innerText = `Error: ${data.error || 'Server error'}`;
+                }
+            } catch (err) {
+                statusPanel.classList.remove("hidden");
+                statusPanel.className = "mb-8 p-4 rounded-xl border border-red-500/30 bg-red-950/20 text-red-300 flex items-start space-x-3 shadow-md";
+                statusIcon.innerText = "⚠";
+                statusTitle.innerText = "Network Error";
+                statusDesc.innerText = `Failed to contact the API endpoint. Details: ${err.message}`;
+            } finally {
+                // Restore Button State
+                btn.disabled = false;
+                btnText.classList.remove("hidden");
+                btnSpinner.classList.add("hidden");
+            }
+        }
+    </script>
+</body>
+</html>
