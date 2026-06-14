@@ -2,3 +2,4 @@ Flask
 requests
 huggingface_hub
 gunicorn
+waitress
