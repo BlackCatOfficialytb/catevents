@@ -3,3 +3,4 @@ requests
 huggingface_hub
 gunicorn
 waitress
+camoufox[geoip]

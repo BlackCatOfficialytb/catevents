@@ -61,33 +61,10 @@ def scrape_reddit_popular():
         logger.error(f"Reddit failed: {e}")
         return [{"title": "Reddit feed temporarily offline", "score": "Offline"}]
 
-def scrape_x_via_nitter():
-    logger.info("Scraping X via Nitter search...")
-    # Falling back on public mirrors like xcancel
-    nitter_instances = [
-        "xcancel.com",
-        "nitter.poast.org",
-        "nitter.privacyredirect.com"
-    ]
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
-    
-    for instance in nitter_instances:
-        url = f"https://{instance}/search/rss?q=%23trending"
-        try:
-            logger.info(f"Trying instance: {instance}")
-            r = requests.get(url, headers=headers, timeout=8)
-            if r.status_code == 200:
-                results = parse_xml_feed(r.text, list_tag="item", default_score="Trending")
-                if results:
-                    return results
-        except Exception as e:
-            logger.warning(f"Nitter instance {instance} failed: {e}")
-            continue 
-            
-    logger.error("All Nitter instances failed.")
-    return [{"title": "Nitter RSS feeds temporarily rate-limited", "score": "Offline"}]
+def scrape_x_trends():
+    # X / Twitter source is temporarily disabled.
+    logger.info("X/Twitter source is currently disabled. Skipping.")
+    return [{"title": "X/Twitter trends temporarily unavailable", "score": "Offline"}]
 
 def run_all_scrapes():
     """Compiles all real-time data into a single payload."""
@@ -95,7 +72,7 @@ def run_all_scrapes():
         "macro_trends": ["AI Tech", "Market Shifts", "Global News"],
         "google": scrape_google_trends(),
         "reddit": scrape_reddit_popular(),
-        "x": scrape_x_via_nitter()
+        "x": scrape_x_trends()
     }
 
 if __name__ == "__main__":

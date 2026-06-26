@@ -22,7 +22,11 @@ HF_TOKEN = os.getenv("HF_TOKEN").strip('\'"') if os.getenv("HF_TOKEN") else None
 REPO_ID = os.getenv("REPO_ID", "YOUR_USERNAME/YOUR_DATASET").strip('\'"')
 LOCAL_CACHE_FILE = "trends_debug.json"
 
-nitter_instances = [
+# X / Twitter scraping is temporarily disabled. Flip to True to re-enable.
+X_SCRAPING_ENABLED = False
+
+# Mirror endpoints used only when X scraping is re-enabled.
+_x_mirror_instances = [
     "xcancel.com",
     "nitter.net",
     "nuku.trabun.org",
@@ -123,25 +127,33 @@ def scrape_reddit_popular():
         logger.error(f"Reddit failed: {e}")
         return [{"title": "Reddit feed offline", "score": "Offline"}]
 
-def scrape_x_via_nitter():
+def scrape_x_trends():
+    """
+    X / Twitter trends source. Temporarily disabled — returns a neutral
+    'unavailable' placeholder so the rest of the pipeline keeps working.
+    """
+    if not X_SCRAPING_ENABLED or not _x_mirror_instances:
+        logger.info("X/Twitter source is currently disabled. Skipping.")
+        return [{"title": "X/Twitter trends temporarily unavailable", "score": "Offline"}]
+
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    
-    for instance in nitter_instances:
+
+    for instance in _x_mirror_instances:
         url = f"https://{instance}/search/rss?q=%23trending"
         try:
-            logger.info(f"Trying instance: {instance}")
+            logger.info(f"Trying mirror: {instance}")
             r = requests.get(url, headers=headers, timeout=8)
-            
+
             if r.status_code != 200:
                 logger.warning(f"Skipping {instance}: Returned status code {r.status_code}")
                 continue
-                
+
             if "application/xml" not in r.headers.get("Content-Type", "").lower() and "<rss" not in r.text[:200]:
                 logger.warning(f"Skipping {instance}: RSS feed endpoint is disabled.")
                 continue
 
             results = parse_xml_feed(r.text, list_tag="item", default_score="Trending")
-            
+
             # Honeypot Check: Ensure the first item isn't their "not whitelisted" prompt
             if results and any("whitelist" in item["title"].lower() for item in results):
                 logger.warning(f"Skipping {instance}: Returned a 'not whitelisted' honeypot feed.")
@@ -150,17 +162,17 @@ def scrape_x_via_nitter():
             if results:
                 return results
         except Exception as e:
-            logger.warning(f"Failed to fetch from Nitter instance {instance}: {str(e)}")
+            logger.warning(f"Failed to fetch from mirror {instance}: {str(e)}")
             continue
-            
-    return [{"title": "Twitter/X trends rate-limited", "score": "Offline"}]
+
+    return [{"title": "X/Twitter trends rate-limited", "score": "Offline"}]
 
 def run_all_scrapes():
     return {
         "macro_trends": ["AI Tech", "Market Shifts", "Global News"],
         "google": scrape_google_trends(),
         "reddit": scrape_reddit_popular(),
-        "x": scrape_x_via_nitter()
+        "x": scrape_x_trends()
     }
 
 def get_latest_scraped_data():
@@ -258,6 +270,24 @@ if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
 # -------------------------------------------------------------------------
 # ROUTES
 # -------------------------------------------------------------------------
+@app.route("/health", methods=["GET", "HEAD"])
+def health_check():
+    """Lightweight liveness probe for uptime monitors / load balancers.
+
+    Supports HEAD (cheap ping — no body sent) and GET (returns JSON status).
+    """
+    from flask import request
+
+    if request.method == "HEAD":
+        # HEAD responses must not include a body; an empty 200 is enough.
+        return ("", 200)
+
+    return jsonify({
+        "status": "ok",
+        "service": "catevents-scraper",
+        "x_scraping_enabled": X_SCRAPING_ENABLED
+    }), 200
+
 @app.route("/", methods=["GET"])
 def index():
     return redirect("/admin")
