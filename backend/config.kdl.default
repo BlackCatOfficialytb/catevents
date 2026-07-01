@@ -1,0 +1,123 @@
+// =============================================================================
+// catevents — default configuration (KDL)
+//
+// This is the DEFAULT/template config. Copy it to `config.kdl` and edit:
+//     cp config.kdl.default config.kdl
+//
+// `config.py` reads `config.kdl` if present, otherwise falls back to this file,
+// and exposes every value below as a native Python variable.
+//
+// NOTE: HF_TOKEN is intentionally NOT stored here. It is a secret and is read
+// only from the HF_TOKEN environment variable.
+// =============================================================================
+
+// --- Hugging Face dataset target -------------------------------------------
+huggingface {
+    // Dataset repo that scraped trends are uploaded to / read back from.
+    repo_id "YOUR_USERNAME/YOUR_DATASET"
+    // Filename inside the dataset repo.
+    remote_filename "trends.json"
+}
+
+// --- Local cache -----------------------------------------------------------
+cache {
+    // On-disk JSON cache written after every scrape.
+    local_file "trends_debug.json"
+}
+
+// --- HTTP server -----------------------------------------------------------
+server {
+    // Port is overridden by the PORT env var when present.
+    port 5000
+    host "0.0.0.0"
+    debug #true
+}
+
+// --- Background scheduler ---------------------------------------------------
+scheduler {
+    enabled #true
+    // Grace period after boot before the first background run (seconds).
+    boot_delay_seconds 5
+    // Delay between scheduled scrapes (seconds). 300 = 5 minutes.
+    interval_seconds 300
+}
+
+// --- Shared feed parsing ---------------------------------------------------
+feed {
+    // Max items pulled from any single RSS/Atom feed.
+    item_limit 10
+}
+
+// --- Google Trends ---------------------------------------------------------
+google_trends {
+    enabled #true
+    // RSS endpoint; {geo} is substituted per region.
+    url_template "https://trends.google.com/trending/rss?geo={geo}"
+    // Per-region request timeout (seconds).
+    request_timeout 5
+    // Max unique trends kept after global aggregation.
+    result_limit 15
+    // High-volume, generally-unblocked country codes (mainland China excluded).
+    geos "US" "GB" "CA" "AU" "NZ" "IE" \
+         "FR" "DE" "IT" "ES" "NL" "BE" "CH" "AT" "SE" "NO" "DK" "FI" "PL" \
+         "JP" "KR" "IN" "SG" "MY" "PH" "ID" "TH" "VN" "TW" "HK" \
+         "BR" "MX" "AR" "CO" "CL" "PE" \
+         "ZA" "NG" "KE" "EG" \
+         "AE" "SA" "IL" "TR"
+}
+
+// --- Reddit ----------------------------------------------------------------
+reddit {
+    enabled #true
+    url "https://www.reddit.com/r/popular/top/.rss?sort=top&t=day&limit=10"
+    user_agent "RenderTrendBot/1.0 (contact: test@example.com)"
+    default_score "▲ Popular"
+    request_timeout 10
+}
+
+// --- X / Twitter -----------------------------------------------------------
+x {
+    // Master switch — flip to #true to re-enable X scraping.
+    enabled #false
+    user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    // Search query appended to each mirror's /search/rss endpoint.
+    query "#trending"
+    request_timeout 8
+    default_score "Trending"
+    // Nitter-style mirror instances, tried in order.
+    mirrors "xcancel.com" \
+            "nitter.net" \
+            "nuku.trabun.org" \
+            "nitter.space" \
+            "nitter.privacyredirect.com" \
+            "nitter.kareem.one" \
+            "nitter.poast.org" \
+            "nitter.catsarch.com"
+}
+
+// --- Camoufox stealth browser scraper --------------------------------------
+camoufox {
+    enabled #true
+    // Run the patched Firefox without a visible window.
+    headless #true
+    // Add human-like cursor movement.
+    humanize #true
+    // Default CSS selector for extracting text snippets.
+    default_selector "h1, h2, h3"
+    // Max snippets returned per page.
+    default_limit 10
+    // Navigation timeout (milliseconds).
+    timeout_ms 30000
+    // Extra wait for client-side rendering after load (milliseconds).
+    settle_ms 2000
+    // Retry attempts on navigation failure.
+    max_retries 2
+    // Block heavy resource types to speed up scraping. Empty = block nothing.
+    block_resources "image" "font" "media"
+    // Optional upstream proxy, e.g. "http://user:pass@host:port". Empty = none.
+    proxy ""
+    // Default page to scrape when run standalone.
+    default_url "https://news.ycombinator.com"
+    // Selector used by the standalone demo run.
+    default_demo_selector ".titleline > a"
+}

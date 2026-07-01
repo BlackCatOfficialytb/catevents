@@ -9,6 +9,18 @@ from flask import Flask, jsonify, render_template, redirect
 import requests
 import time
 
+# All configuration lives in config.py (loaded from config.kdl / .default).
+from config import (
+    HF_TOKEN, REPO_ID, HF_REMOTE_FILENAME, LOCAL_CACHE_FILE,
+    SCHEDULER_ENABLED, SCHEDULER_BOOT_DELAY, SCHEDULER_INTERVAL,
+    FEED_ITEM_LIMIT,
+    GOOGLE_TRENDS_ENABLED, GOOGLE_TRENDS_URL_TEMPLATE, GOOGLE_TRENDS_TIMEOUT,
+    GOOGLE_TRENDS_RESULT_LIMIT, GOOGLE_TRENDS_GEOS,
+    REDDIT_ENABLED, REDDIT_URL, REDDIT_USER_AGENT, REDDIT_DEFAULT_SCORE, REDDIT_TIMEOUT,
+    X_SCRAPING_ENABLED, X_USER_AGENT, X_QUERY, X_TIMEOUT, X_DEFAULT_SCORE,
+    X_MIRROR_INSTANCES,
+)
+
 # -------------------------------------------------------------------------
 # LOGGING & CONFIGURATION
 # -------------------------------------------------------------------------
@@ -16,26 +28,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-
-# Strip accidental surrounding quotes (common on Windows CMD)
-HF_TOKEN = os.getenv("HF_TOKEN").strip('\'"') if os.getenv("HF_TOKEN") else None
-REPO_ID = os.getenv("REPO_ID", "YOUR_USERNAME/YOUR_DATASET").strip('\'"')
-LOCAL_CACHE_FILE = "trends_debug.json"
-
-# X / Twitter scraping is temporarily disabled. Flip to True to re-enable.
-X_SCRAPING_ENABLED = False
-
-# Mirror endpoints used only when X scraping is re-enabled.
-_x_mirror_instances = [
-    "xcancel.com",
-    "nitter.net",
-    "nuku.trabun.org",
-    "nitter.space",
-    "nitter.privacyredirect.com",
-    "nitter.kareem.one",
-    "nitter.poast.org",
-    "nitter.catsarch.com"
-]
 
 # -------------------------------------------------------------------------
 # PARSERS & SCRAPERS
@@ -52,7 +44,7 @@ def parse_xml_feed(xml_text, list_tag, title_tag="title", score_tag=None, defaul
             elem.tag = elem.tag.split('}', 1)[1]
 
     items = []
-    for item_node in root.findall(f'.//{list_tag}')[:10]:
+    for item_node in root.findall(f'.//{list_tag}')[:FEED_ITEM_LIMIT]:
         title_node = item_node.find(title_tag)
         title = title_node.text.strip() if title_node is not None and title_node.text else "No Title"
         
@@ -71,24 +63,17 @@ def scrape_google_trends():
     and international regions, eliminating duplicates.
     """
     logger.info("Generating aggregated Global Google Trends...")
-    # A cleaned list of high-volume, unblocked Google Trends country codes
-    global_geos = [
-        "US", "GB", "CA", "AU", "NZ", "IE",  # English-speaking
-        "FR", "DE", "IT", "ES", "NL", "BE", "CH", "AT", "SE", "NO", "DK", "FI", "PL", # Europe
-        "JP", "KR", "IN", "SG", "MY", "PH", "ID", "TH", "VN", "TW", "HK", # Asia (Excluding mainland China)
-        "BR", "MX", "AR", "CO", "CL", "PE", # Latin America
-        "ZA", "NG", "KE", "EG", # Africa
-        "AE", "SA", "IL", "TR"  # Middle East
-    ]
-    
+    # High-volume, generally-unblocked country codes (from config).
+    global_geos = GOOGLE_TRENDS_GEOS
+
     aggregated_trends = []
     seen_titles = set()
-    
+
     for geo in global_geos:
-        url = f"https://trends.google.com/trending/rss?geo={geo}"
+        url = GOOGLE_TRENDS_URL_TEMPLATE.format(geo=geo)
         try:
             logger.info(f"Fetching Google Trends for region: {geo}")
-            r = requests.get(url, timeout=5) # Short timeout per region
+            r = requests.get(url, timeout=GOOGLE_TRENDS_TIMEOUT) # Short timeout per region
             
             if r.status_code == 200:
                 regional_trends = parse_xml_feed(r.text, list_tag="item", score_tag="approx_traffic")
@@ -107,8 +92,8 @@ def scrape_google_trends():
         # Prevent Rate-limited
         # time.sleep(120)
 
-    # Return top 15 unique global trends (or adjust limit as needed)
-    final_trends = aggregated_trends[:15]
+    # Return top unique global trends (limit from config).
+    final_trends = aggregated_trends[:GOOGLE_TRENDS_RESULT_LIMIT]
     
     if not final_trends:
         return [{"title": "Google Trends globally offline", "score": "0"}]
@@ -117,12 +102,14 @@ def scrape_google_trends():
     return final_trends
 
 def scrape_reddit_popular():
-    url = "https://www.reddit.com/r/popular/top/.rss?sort=top&t=day&limit=10"
-    headers = {"User-Agent": "RenderTrendBot/1.0 (contact: test@example.com)"}
+    if not REDDIT_ENABLED:
+        logger.info("Reddit source is disabled. Skipping.")
+        return [{"title": "Reddit source disabled", "score": "Offline"}]
+    headers = {"User-Agent": REDDIT_USER_AGENT}
     try:
-        r = requests.get(url, headers=headers, timeout=10)
+        r = requests.get(REDDIT_URL, headers=headers, timeout=REDDIT_TIMEOUT)
         r.raise_for_status()
-        return parse_xml_feed(r.text, list_tag="entry", default_score="▲ Popular")
+        return parse_xml_feed(r.text, list_tag="entry", default_score=REDDIT_DEFAULT_SCORE)
     except Exception as e:
         logger.error(f"Reddit failed: {e}")
         return [{"title": "Reddit feed offline", "score": "Offline"}]
@@ -132,17 +119,17 @@ def scrape_x_trends():
     X / Twitter trends source. Temporarily disabled — returns a neutral
     'unavailable' placeholder so the rest of the pipeline keeps working.
     """
-    if not X_SCRAPING_ENABLED or not _x_mirror_instances:
+    if not X_SCRAPING_ENABLED or not X_MIRROR_INSTANCES:
         logger.info("X/Twitter source is currently disabled. Skipping.")
         return [{"title": "X/Twitter trends temporarily unavailable", "score": "Offline"}]
 
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    headers = {"User-Agent": X_USER_AGENT}
 
-    for instance in _x_mirror_instances:
-        url = f"https://{instance}/search/rss?q=%23trending"
+    for instance in X_MIRROR_INSTANCES:
+        url = f"https://{instance}/search/rss?q={requests.utils.quote(X_QUERY)}"
         try:
             logger.info(f"Trying mirror: {instance}")
-            r = requests.get(url, headers=headers, timeout=8)
+            r = requests.get(url, headers=headers, timeout=X_TIMEOUT)
 
             if r.status_code != 200:
                 logger.warning(f"Skipping {instance}: Returned status code {r.status_code}")
@@ -152,7 +139,7 @@ def scrape_x_trends():
                 logger.warning(f"Skipping {instance}: RSS feed endpoint is disabled.")
                 continue
 
-            results = parse_xml_feed(r.text, list_tag="item", default_score="Trending")
+            results = parse_xml_feed(r.text, list_tag="item", default_score=X_DEFAULT_SCORE)
 
             # Honeypot Check: Ensure the first item isn't their "not whitelisted" prompt
             if results and any("whitelist" in item["title"].lower() for item in results):
@@ -168,9 +155,12 @@ def scrape_x_trends():
     return [{"title": "X/Twitter trends rate-limited", "score": "Offline"}]
 
 def run_all_scrapes():
+    google = scrape_google_trends() if GOOGLE_TRENDS_ENABLED else [
+        {"title": "Google Trends source disabled", "score": "Offline"}
+    ]
     return {
         "macro_trends": ["AI Tech", "Market Shifts", "Global News"],
-        "google": scrape_google_trends(),
+        "google": google,
         "reddit": scrape_reddit_popular(),
         "x": scrape_x_trends()
     }
@@ -182,9 +172,9 @@ def get_latest_scraped_data():
         try:
             from huggingface_hub import hf_hub_download
             local_path = hf_hub_download(
-                repo_id=REPO_ID, 
-                filename="trends.json", 
-                repo_type="dataset", 
+                repo_id=REPO_ID,
+                filename=HF_REMOTE_FILENAME,
+                repo_type="dataset",
                 token=HF_TOKEN
             )
             with open(local_path, "r", encoding="utf-8") as f:
@@ -227,7 +217,7 @@ def execute_scrape_and_upload():
             api = HfApi()
             api.upload_file(
                 path_or_fileobj=json_bytes,
-                path_in_repo="trends.json",
+                path_in_repo=HF_REMOTE_FILENAME,
                 repo_id=REPO_ID,
                 repo_type="dataset",
                 token=HF_TOKEN
@@ -247,24 +237,24 @@ def execute_scrape_and_upload():
 def start_scheduler():
     def scheduler_loop():
         # Small delay on boot to allow the server to finish printing initialization logs
-        time.sleep(5)
+        time.sleep(SCHEDULER_BOOT_DELAY)
         logger.info("Scheduler thread active. Executing first background run...")
-        
+
         while True:
             try:
                 execute_scrape_and_upload()
             except Exception as e:
                 logger.error(f"Background scheduler task encountered an error: {e}")
-            
-            logger.info("Scheduled scrape complete. Next run in 5 minutes...")
-            time.sleep(300) # 300 seconds = 5 minutes
+
+            logger.info(f"Scheduled scrape complete. Next run in {SCHEDULER_INTERVAL} seconds...")
+            time.sleep(SCHEDULER_INTERVAL)
 
     # Create thread as a daemon so it exits cleanly when the main process shuts down
     scheduler_thread = threading.Thread(target=scheduler_loop, daemon=True)
     scheduler_thread.start()
 
 # Only run the scheduler once (prevents double runs if debug mode is active)
-if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
+if SCHEDULER_ENABLED and (os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug):
     start_scheduler()
 
 # -------------------------------------------------------------------------

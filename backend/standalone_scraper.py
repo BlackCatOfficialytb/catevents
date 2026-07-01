@@ -3,6 +3,12 @@ import logging
 import xml.etree.ElementTree as ET
 import requests
 
+from config import (
+    FEED_ITEM_LIMIT,
+    GOOGLE_TRENDS_URL_TEMPLATE, GOOGLE_TRENDS_TIMEOUT,
+    REDDIT_URL, REDDIT_USER_AGENT, REDDIT_DEFAULT_SCORE, REDDIT_TIMEOUT,
+)
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] in %(module)s: %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -23,7 +29,7 @@ def parse_xml_feed(xml_text, list_tag, title_tag="title", score_tag=None, defaul
             elem.tag = elem.tag.split('}', 1)[1]
 
     items = []
-    for item_node in root.findall(f'.//{list_tag}')[:10]:
+    for item_node in root.findall(f'.//{list_tag}')[:FEED_ITEM_LIMIT]:
         title_node = item_node.find(title_tag)
         title = title_node.text.strip() if title_node is not None and title_node.text else "No Title"
         
@@ -38,9 +44,9 @@ def parse_xml_feed(xml_text, list_tag, title_tag="title", score_tag=None, defaul
 
 def scrape_google_trends():
     logger.info("Scraping Google Trends RSS...")
-    url = "https://trends.google.com/trending/rss?geo=US"
+    url = GOOGLE_TRENDS_URL_TEMPLATE.format(geo="US")
     try:
-        r = requests.get(url, timeout=10)
+        r = requests.get(url, timeout=GOOGLE_TRENDS_TIMEOUT)
         r.raise_for_status()
         return parse_xml_feed(r.text, list_tag="item", score_tag="approx_traffic")
     except Exception as e:
@@ -49,14 +55,11 @@ def scrape_google_trends():
 
 def scrape_reddit_popular():
     logger.info("Scraping Reddit Popular RSS...")
-    url = "https://www.reddit.com/r/popular/top/.rss?sort=top&t=day&limit=10"
-    headers = {
-        "User-Agent": "RenderTrendBot/1.0 (contact: test_render_scraper@example.com)"
-    }
+    headers = {"User-Agent": REDDIT_USER_AGENT}
     try:
-        r = requests.get(url, headers=headers, timeout=10)
+        r = requests.get(REDDIT_URL, headers=headers, timeout=REDDIT_TIMEOUT)
         r.raise_for_status()
-        return parse_xml_feed(r.text, list_tag="entry", default_score="▲ Popular")
+        return parse_xml_feed(r.text, list_tag="entry", default_score=REDDIT_DEFAULT_SCORE)
     except Exception as e:
         logger.error(f"Reddit failed: {e}")
         return [{"title": "Reddit feed temporarily offline", "score": "Offline"}]

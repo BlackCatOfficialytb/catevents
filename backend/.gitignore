@@ -17,3 +17,6 @@ Thumbs.db
 # Sensitive variables (Never commit real API tokens!)
 .env
 instance/
+
+# Local config copy — keep config.kdl.default tracked, ignore the user's edits
+config.kdl
