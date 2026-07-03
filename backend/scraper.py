@@ -19,6 +19,7 @@ from config import (
     REDDIT_ENABLED, REDDIT_URL, REDDIT_USER_AGENT, REDDIT_DEFAULT_SCORE, REDDIT_TIMEOUT,
     X_SCRAPING_ENABLED, X_USER_AGENT, X_QUERY, X_TIMEOUT, X_DEFAULT_SCORE,
     X_MIRROR_INSTANCES,
+    CAMOUFOX,
 )
 
 # -------------------------------------------------------------------------
@@ -114,10 +115,51 @@ def scrape_reddit_popular():
         logger.error(f"Reddit failed: {e}")
         return [{"title": "Reddit feed offline", "score": "Offline"}]
 
+def _scrape_x_via_camoufox():
+    """
+    Fetch X/Twitter search results through the Camoufox stealth browser.
+
+    The Nitter mirrors bot-block plain `requests` (which is why the RSS path
+    below keeps returning 'rate-limited'). Camoufox is a hardened Firefox with
+    built-in anti-fingerprinting, so it can load the JS-rendered HTML search
+    page. We extract tweet text via the Nitter `.tweet-content` selector.
+
+    Returns a list of ``{"title", "score"}`` dicts, or [] if nothing worked.
+    """
+    # Lazy import so the module still loads if Camoufox isn't installed.
+    try:
+        from camoufox_scraper import scrape_page
+    except Exception as e:
+        logger.warning(f"Camoufox unavailable, cannot scrape X: {e}")
+        return []
+
+    limit = CAMOUFOX.get("default_limit") or FEED_ITEM_LIMIT
+    for instance in X_MIRROR_INSTANCES:
+        url = f"https://{instance}/search?f=tweets&q={requests.utils.quote(X_QUERY)}"
+        try:
+            logger.info(f"Trying mirror via Camoufox: {instance}")
+            items = scrape_page(url, selector=".tweet-content", limit=limit)
+            # Skip honeypot / 'not whitelisted' interstitials.
+            if items and any("whitelist" in i["title"].lower() for i in items):
+                logger.warning(f"Skipping {instance}: 'not whitelisted' honeypot page.")
+                continue
+            if items:
+                for i in items:
+                    i["score"] = X_DEFAULT_SCORE
+                return items
+        except Exception as e:
+            logger.warning(f"Camoufox failed for mirror {instance}: {e}")
+            continue
+    return []
+
+
 def scrape_x_trends():
     """
-    X / Twitter trends source. Temporarily disabled — returns a neutral
-    'unavailable' placeholder so the rest of the pipeline keeps working.
+    X / Twitter trends source.
+
+    Strategy: try the lightweight RSS mirrors over plain `requests` first; if
+    they're all bot-blocked/rate-limited, fall back to the Camoufox stealth
+    browser (when enabled) which can load the JS-rendered HTML search page.
     """
     if not X_SCRAPING_ENABLED or not X_MIRROR_INSTANCES:
         logger.info("X/Twitter source is currently disabled. Skipping.")
@@ -151,6 +193,13 @@ def scrape_x_trends():
         except Exception as e:
             logger.warning(f"Failed to fetch from mirror {instance}: {str(e)}")
             continue
+
+    # RSS mirrors all failed — fall back to the Camoufox stealth browser.
+    if CAMOUFOX.get("enabled"):
+        logger.info("RSS mirrors exhausted; falling back to Camoufox for X/Twitter.")
+        camoufox_results = _scrape_x_via_camoufox()
+        if camoufox_results:
+            return camoufox_results
 
     return [{"title": "X/Twitter trends rate-limited", "score": "Offline"}]
 
