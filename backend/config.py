@@ -411,10 +411,19 @@ def _list(path, env=None, default=_MISSING):
 # Only genuinely-optional values pass an explicit `default=`. When neither the
 # file nor the env supplies a required value, ConfigError is raised at import.
 
-# --- Secret (env only; deliberately NOT in KDL) --------------------------
+# --- Secret (env preferred; KDL fallback) --------------------------------
 # HF_TOKEN is an optional credential; absence is allowed (None disables upload).
-# Strip accidental surrounding quotes (common on Windows CMD).
-HF_TOKEN = os.getenv("HF_TOKEN").strip('\'"') if os.getenv("HF_TOKEN") else None
+#
+# Resolution: HF_TOKEN env var (highest priority) -> huggingface.hf_token in the
+# config file -> None. The env var always wins, so a deployment secret is never
+# shadowed by a value in config.kdl. Keep real tokens in config.kdl (which is
+# git-ignored) — never in the committed config.kdl.default. Strip accidental
+# surrounding quotes (common on Windows CMD) and treat the placeholder as unset.
+_hf_token = os.getenv("HF_TOKEN")
+if _hf_token is None:
+    _hf_token = _str("huggingface.hf_token", default="")
+_hf_token = (_hf_token or "").strip().strip('\'"')
+HF_TOKEN = _hf_token if _hf_token and _hf_token != "YOUR_HF_TOKEN" else None
 
 # --- Hugging Face --------------------------------------------------------
 REPO_ID = _str("huggingface.repo_id", env="REPO_ID")

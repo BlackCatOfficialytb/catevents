@@ -7,8 +7,10 @@
 // `config.py` reads `config.kdl` if present, otherwise falls back to this file,
 // and exposes every value below as a native Python variable.
 //
-// NOTE: HF_TOKEN is intentionally NOT stored here. It is a secret and is read
-// only from the HF_TOKEN environment variable.
+// NOTE: HF_TOKEN is a secret. The HF_TOKEN environment variable always takes
+// priority; the huggingface.hf_token value below is only a lower-priority
+// fallback. NEVER put a real token in this committed template — set the env var,
+// or copy this file to config.kdl (git-ignored) and put the token there.
 // =============================================================================
 
 // --- Hugging Face dataset target -------------------------------------------
@@ -17,6 +19,9 @@ huggingface {
     repo_id "YOUR_USERNAME/YOUR_DATASET"
     // Filename inside the dataset repo.
     remote_filename "trends.json"
+    // Secret token for uploading to the dataset. The HF_TOKEN env var overrides
+    // this. Leave the placeholder here; put a real token only in config.kdl.
+    hf_token "YOUR_HF_TOKEN"
 }
 
 // --- Local cache -----------------------------------------------------------
