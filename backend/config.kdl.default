@@ -24,6 +24,54 @@ huggingface {
     hf_token "YOUR_HF_TOKEN"
 }
 
+// --- AI summarization / keyword extraction ---------------------------------
+// Uses an LLM to summarize the day's Google+Reddit trends and derive semantic
+// search keywords that drive the Nitter/Camoufox search (replacing the static
+// x.query when available; x.query is the fallback).
+ai {
+    // Master switch for AI API calls. When #false, NO AI request is made; the
+    // pipeline uses classic (non-AI) semantic keyword extraction instead — see
+    // `semantic_search` below.
+    enabled #false
+
+    // --- Feature flags -----------------------------------------------------
+    // When `enabled` is #true, these choose what the AI is used for. If BOTH
+    // ai_summarize and use_ai_to_find_nitter_result are #false while `enabled`
+    // is #true, the AI system does nothing useful and a warning is logged
+    // recommending you set `enabled` to #false.
+    //
+    // Summarize the day's trends with the AI API into `ai_summary`.
+    ai_summarize #true
+    // Use the AI API to derive the best Nitter search keywords (semantic).
+    use_ai_to_find_nitter_result #true
+    // Classic (non-AI) semantic keyword extraction from Google+Reddit. Used to
+    // pick Nitter keywords when the AI is NOT finding them (either `enabled`
+    // #false, or use_ai_to_find_nitter_result #false). #false = fall back to
+    // the static x.query.
+    semantic_search #true
+
+    // API flavor. MUST be one of:
+    //   "openai"    — OpenAI-compatible API   (POST {base_url}/chat/completions)
+    //   "anthropic" — Anthropic-compatible API (POST {base_url}/v1/messages)
+    api_type "openai"
+    // Base URL of the API. For OpenAI-compatible endpoints include the /v1
+    // suffix (e.g. "https://api.openai.com/v1"); for Anthropic-compatible use
+    // the root (e.g. "https://api.anthropic.com").
+    base_url "https://api.openai.com/v1"
+    // Model name to use.
+    model "gpt-4o-mini"
+    // API key. The AI_API_KEY env var overrides this. Leave the placeholder in
+    // this committed template; put a real key only in config.kdl.
+    api_key "YOUR_AI_API_KEY"
+    // Generation controls.
+    max_tokens 512
+    temperature 0.3
+    // Request timeout (seconds).
+    request_timeout 30
+    // How many search keywords/queries the AI should return for Nitter.
+    keyword_count 3
+}
+
 // --- Local cache -----------------------------------------------------------
 cache {
     // On-disk JSON cache written after every scrape.
@@ -125,4 +173,24 @@ camoufox {
     default_url "https://news.ycombinator.com"
     // Selector used by the standalone demo run.
     default_demo_selector ".titleline > a"
+}
+
+// --- Trend ranking / quicksort --------------------------------------------
+// Controls how Google Trends & Reddit items are ranked. The quicksort orders
+// by highest search volume, then most abnormal 24h frequency, then title.
+sorting {
+    // Sort trends by volume/abnormality (uses the custom quicksort). When
+    // #false, scraped order is preserved.
+    enabled #true
+    // Sort order for the primary key: "desc" (highest volume first) or "asc".
+    order "desc"
+    // Case-insensitive alphabetical tie-break. #true upper-cases before the
+    // ASCII(-32) conversion so 'a' and 'A' fold together.
+    case_insensitive #true
+    // Weight the abnormality (24h spike z-score) as a tie-break between items
+    // of equal volume. Set #false to tie-break on title only.
+    use_abnormality #true
+    // ASCII offset subtracted from each char code when building the sort key.
+    // Per spec this is 32 (space); rarely needs changing.
+    ascii_offset 32
 }

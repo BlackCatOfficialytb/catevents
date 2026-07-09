@@ -10,6 +10,11 @@ ENV/
 *.pyo
 *.pyd
 
+# Test / coverage artifacts
+.coverage
+.pytest_cache/
+htmlcov/
+
 # Operating system noise
 .DS_Store
 Thumbs.db

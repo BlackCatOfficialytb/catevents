@@ -4,3 +4,6 @@ huggingface_hub
 gunicorn
 waitress
 camoufox[geoip]
+# Pin: playwright 1.61 sends a viewport.isMobile field the bundled Camoufox
+# Juggler rejects, breaking new_page(). See daijro/camoufox#653.
+playwright==1.60.0

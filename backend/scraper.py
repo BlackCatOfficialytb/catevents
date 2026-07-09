@@ -5,6 +5,7 @@ import logging
 import xml.etree.ElementTree as ET
 import time
 import threading
+import traceback
 from flask import Flask, jsonify, render_template, redirect
 import requests
 import time
@@ -21,6 +22,8 @@ from config import (
     X_MIRROR_INSTANCES,
     CAMOUFOX,
 )
+from sorting import sort_trends
+from ai import analyze_trends
 
 # -------------------------------------------------------------------------
 # LOGGING & CONFIGURATION
@@ -29,6 +32,20 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Most-recent Camoufox X/Twitter troubleshooting bundle (tracebacks + page
+# diagnostics from the last failed run). Exposed via the /debug/x-troubleshooting
+# endpoint so failures can be inspected without digging through logs.
+_last_x_diagnostics = []
+
+
+def _record_x_diagnostics(diagnostics):
+    """Store the latest X-scrape troubleshooting bundle for later inspection."""
+    global _last_x_diagnostics
+    _last_x_diagnostics = diagnostics or []
+    if _last_x_diagnostics:
+        logger.info("Recorded X troubleshooting for %d mirror(s).", len(_last_x_diagnostics))
+
 
 # -------------------------------------------------------------------------
 # PARSERS & SCRAPERS
@@ -93,12 +110,14 @@ def scrape_google_trends():
         # Prevent Rate-limited
         # time.sleep(120)
 
-    # Return top unique global trends (limit from config).
-    final_trends = aggregated_trends[:GOOGLE_TRENDS_RESULT_LIMIT]
-    
-    if not final_trends:
+    if not aggregated_trends:
         return [{"title": "Google Trends globally offline", "score": "0"}]
-        
+
+    # Rank by highest search volume, then most abnormal 24h frequency (quicksort
+    # over ASCII-folded keys), THEN truncate — so the top-N are the real leaders.
+    ranked = sort_trends(aggregated_trends)
+    final_trends = ranked[:GOOGLE_TRENDS_RESULT_LIMIT]
+
     logger.info(f"Successfully compiled {len(final_trends)} global trending terms.")
     return final_trends
 
@@ -110,12 +129,16 @@ def scrape_reddit_popular():
     try:
         r = requests.get(REDDIT_URL, headers=headers, timeout=REDDIT_TIMEOUT)
         r.raise_for_status()
-        return parse_xml_feed(r.text, list_tag="entry", default_score=REDDIT_DEFAULT_SCORE)
+        items = parse_xml_feed(r.text, list_tag="entry", default_score=REDDIT_DEFAULT_SCORE)
+        # Rank by search volume / abnormal frequency (quicksort). Reddit's RSS
+        # carries no numeric score, so ties fall back to ASCII-folded title
+        # order; any numeric score present (custom feeds) is honoured.
+        return sort_trends(items)
     except Exception as e:
         logger.error(f"Reddit failed: {e}")
         return [{"title": "Reddit feed offline", "score": "Offline"}]
 
-def _scrape_x_via_camoufox():
+def _scrape_x_via_camoufox(query=None):
     """
     Fetch X/Twitter search results through the Camoufox stealth browser.
 
@@ -123,6 +146,9 @@ def _scrape_x_via_camoufox():
     below keeps returning 'rate-limited'). Camoufox is a hardened Firefox with
     built-in anti-fingerprinting, so it can load the JS-rendered HTML search
     page. We extract tweet text via the Nitter `.tweet-content` selector.
+
+    `query` overrides the static X_QUERY (e.g. an AI-derived keyword). When
+    None, X_QUERY is used.
 
     Returns a list of ``{"title", "score"}`` dicts, or [] if nothing worked.
     """
@@ -133,42 +159,71 @@ def _scrape_x_via_camoufox():
         logger.warning(f"Camoufox unavailable, cannot scrape X: {e}")
         return []
 
+    search_query = query or X_QUERY
     limit = CAMOUFOX.get("default_limit") or FEED_ITEM_LIMIT
+    diagnostics = []  # troubleshooting bundles from every failed mirror
     for instance in X_MIRROR_INSTANCES:
-        url = f"https://{instance}/search?f=tweets&q={requests.utils.quote(X_QUERY)}"
+        url = f"https://{instance}/search?f=tweets&q={requests.utils.quote(search_query)}"
         try:
             logger.info(f"Trying mirror via Camoufox: {instance}")
-            items = scrape_page(url, selector=".tweet-content", limit=limit)
+            # Nitter renders tweets inside `.timeline-item`; wait for that
+            # container to appear before extracting the tweet text, otherwise
+            # the query runs against an empty DOM and silently returns nothing.
+            items, troubleshooting = scrape_page(
+                url,
+                selector=".timeline-item .tweet-content",
+                wait_selector=".timeline-item",
+                limit=limit,
+                return_troubleshooting=True,
+            )
             # Skip honeypot / 'not whitelisted' interstitials.
             if items and any("whitelist" in i["title"].lower() for i in items):
                 logger.warning(f"Skipping {instance}: 'not whitelisted' honeypot page.")
+                diagnostics.append({"instance": instance, "reason": "honeypot"})
                 continue
             if items:
                 for i in items:
                     i["score"] = X_DEFAULT_SCORE
                 return items
+            logger.warning(f"Mirror {instance} returned no tweets via Camoufox.")
+            if troubleshooting.get("traceback"):
+                logger.debug("Camoufox traceback for %s:\n%s", instance, troubleshooting["traceback"])
+            diagnostics.append({"instance": instance, "troubleshooting": troubleshooting})
         except Exception as e:
             logger.warning(f"Camoufox failed for mirror {instance}: {e}")
+            diagnostics.append({
+                "instance": instance,
+                "error": f"{type(e).__name__}: {e}",
+                "traceback": traceback.format_exc(),
+            })
             continue
+
+    # All mirrors failed — stash troubleshooting for the caller/admin to inspect.
+    _record_x_diagnostics(diagnostics)
     return []
 
 
-def scrape_x_trends():
+def scrape_x_trends(query=None):
     """
     X / Twitter trends source.
 
     Strategy: try the lightweight RSS mirrors over plain `requests` first; if
     they're all bot-blocked/rate-limited, fall back to the Camoufox stealth
     browser (when enabled) which can load the JS-rendered HTML search page.
+
+    `query` overrides the static X_QUERY — this is how AI-derived keywords
+    (semantic search terms from the day's Google+Reddit trends) drive the
+    search. When None, the configured X_QUERY is used.
     """
     if not X_SCRAPING_ENABLED or not X_MIRROR_INSTANCES:
         logger.info("X/Twitter source is currently disabled. Skipping.")
         return [{"title": "X/Twitter trends temporarily unavailable", "score": "Offline"}]
 
+    search_query = query or X_QUERY
     headers = {"User-Agent": X_USER_AGENT}
 
     for instance in X_MIRROR_INSTANCES:
-        url = f"https://{instance}/search/rss?q={requests.utils.quote(X_QUERY)}"
+        url = f"https://{instance}/search/rss?q={requests.utils.quote(search_query)}"
         try:
             logger.info(f"Trying mirror: {instance}")
             r = requests.get(url, headers=headers, timeout=X_TIMEOUT)
@@ -197,7 +252,7 @@ def scrape_x_trends():
     # RSS mirrors all failed — fall back to the Camoufox stealth browser.
     if CAMOUFOX.get("enabled"):
         logger.info("RSS mirrors exhausted; falling back to Camoufox for X/Twitter.")
-        camoufox_results = _scrape_x_via_camoufox()
+        camoufox_results = _scrape_x_via_camoufox(query=search_query)
         if camoufox_results:
             return camoufox_results
 
@@ -207,11 +262,29 @@ def run_all_scrapes():
     google = scrape_google_trends() if GOOGLE_TRENDS_ENABLED else [
         {"title": "Google Trends source disabled", "score": "Offline"}
     ]
+    reddit = scrape_reddit_popular()
+
+    # Flag-driven trend intelligence: summarize the day's Google+Reddit trends
+    # and derive Nitter search keywords. Depending on the `ai` config block this
+    # uses the AI API, classic semantic search, or neither. The top keyword
+    # becomes the Nitter/Camoufox search query (replacing the static X_QUERY);
+    # when no keyword is available, x.query is used.
+    analysis = analyze_trends({"google": google, "reddit": reddit})
+    ai_summary = analysis["summary"]
+    keywords = analysis["keywords"]
+    macro_trends = keywords or ["AI Tech", "Market Shifts", "Global News"]
+
+    x_query = keywords[0] if keywords else None
+    x = scrape_x_trends(query=x_query)
+
     return {
-        "macro_trends": ["AI Tech", "Market Shifts", "Global News"],
+        "macro_trends": macro_trends,
+        "ai_summary": ai_summary,
+        "ai_keywords": keywords,
+        "keyword_source": analysis["source"],
         "google": google,
-        "reddit": scrape_reddit_popular(),
-        "x": scrape_x_trends()
+        "reddit": reddit,
+        "x": x,
     }
 
 def get_latest_scraped_data():
@@ -325,6 +398,16 @@ def health_check():
         "status": "ok",
         "service": "catevents-scraper",
         "x_scraping_enabled": X_SCRAPING_ENABLED
+    }), 200
+
+@app.route("/debug/x-troubleshooting", methods=["GET"])
+def x_troubleshooting():
+    """Return the troubleshooting bundle (tracebacks + page diagnostics) from
+    the most recent failed Camoufox X/Twitter scrape."""
+    return jsonify({
+        "x_scraping_enabled": X_SCRAPING_ENABLED,
+        "mirror_count": len(_last_x_diagnostics),
+        "diagnostics": _last_x_diagnostics,
     }), 200
 
 @app.route("/", methods=["GET"])

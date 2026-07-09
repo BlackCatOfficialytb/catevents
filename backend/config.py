@@ -486,6 +486,54 @@ CAMOUFOX = {
     "default_demo_selector": _str("camoufox.default_demo_selector", env="CAMOUFOX_DEFAULT_DEMO_SELECTOR"),
 }
 
+# --- AI summarization / keyword extraction -------------------------------
+# Grouped for ergonomic import: `from config import AI`.
+#
+# `api_key` is a credential: the AI_API_KEY environment variable takes priority
+# over the `ai.api_key` value in the config file (same pattern as HF_TOKEN), so
+# a deployment secret is never shadowed by a committed placeholder. The
+# placeholder "YOUR_AI_API_KEY" is treated as unset.
+_ai_key = os.getenv("AI_API_KEY")
+if _ai_key is None:
+    _ai_key = _str("ai.api_key", default="")
+_ai_key = (_ai_key or "").strip().strip('\'"')
+if _ai_key == "YOUR_AI_API_KEY":
+    _ai_key = ""
+
+# api_type must be one of the two supported flavors; anything else is a config
+# error caught early rather than producing confusing runtime failures.
+_ai_api_type = _str("ai.api_type", env="AI_API_TYPE", default="openai").strip().lower()
+if _ai_api_type not in ("openai", "anthropic"):
+    raise ConfigError(
+        f"ai.api_type must be 'openai' or 'anthropic', got {_ai_api_type!r}"
+    )
+
+AI = {
+    "enabled": _bool("ai.enabled", env="AI_ENABLED", default=False),
+    "ai_summarize": _bool("ai.ai_summarize", env="AI_SUMMARIZE", default=True),
+    "use_ai_to_find_nitter_result": _bool(
+        "ai.use_ai_to_find_nitter_result", env="AI_USE_FOR_NITTER", default=True),
+    "semantic_search": _bool("ai.semantic_search", env="AI_SEMANTIC_SEARCH", default=True),
+    "api_type": _ai_api_type,
+    "base_url": _str("ai.base_url", env="AI_BASE_URL", default="https://api.openai.com/v1"),
+    "model": _str("ai.model", env="AI_MODEL", default="gpt-4o-mini"),
+    "api_key": _ai_key,
+    "max_tokens": _int("ai.max_tokens", env="AI_MAX_TOKENS", default=512),
+    "temperature": float(_str("ai.temperature", env="AI_TEMPERATURE", default="0.3")),
+    "request_timeout": _int("ai.request_timeout", env="AI_REQUEST_TIMEOUT", default=30),
+    "keyword_count": _int("ai.keyword_count", env="AI_KEYWORD_COUNT", default=3),
+}
+
+# --- Sorting / quicksort -------------------------------------------------
+# Grouped for ergonomic import: `from config import SORTING`.
+SORTING = {
+    "enabled": _bool("sorting.enabled", env="SORTING_ENABLED", default=True),
+    "order": _str("sorting.order", env="SORTING_ORDER", default="desc"),
+    "case_insensitive": _bool("sorting.case_insensitive", env="SORTING_CASE_INSENSITIVE", default=True),
+    "use_abnormality": _bool("sorting.use_abnormality", env="SORTING_USE_ABNORMALITY", default=True),
+    "ascii_offset": _int("sorting.ascii_offset", env="SORTING_ASCII_OFFSET", default=32),
+}
+
 
 if __name__ == "__main__":
     # `python config.py` prints the resolved configuration for debugging.
@@ -528,5 +576,7 @@ if __name__ == "__main__":
         "X_DEFAULT_SCORE": X_DEFAULT_SCORE,
         "X_MIRROR_INSTANCES": X_MIRROR_INSTANCES,
         "CAMOUFOX": CAMOUFOX,
+        "SORTING": SORTING,
+        "AI": {**AI, "api_key": bool(AI["api_key"])},  # never print the key
     }
     print(json.dumps(snapshot, indent=2, ensure_ascii=False))
