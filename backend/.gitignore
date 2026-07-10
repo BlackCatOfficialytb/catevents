@@ -15,6 +15,9 @@ ENV/
 .pytest_cache/
 htmlcov/
 
+# Generated scrape cache (written on every run; never commit)
+trends_debug.json
+
 # Operating system noise
 .DS_Store
 Thumbs.db

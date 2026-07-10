@@ -1,12 +1,11 @@
 # ai.py
 """
-AI summarization + semantic keyword extraction for scraped trends.
+AI semantic predictor for Nitter/X search queries.
 
-Given the day's Google Trends and Reddit items, this module asks an LLM to:
-  1. Summarize what the world is talking about right now (a short paragraph).
-  2. Extract a handful of concrete search keywords/phrases that best capture the
-     dominant macro trends — these drive the Nitter/Camoufox search, replacing
-     the static `x.query` when AI is enabled.
+Given the day's Google Trends and Reddit items, this module asks an LLM to
+predict the most relevant search keywords/phrases that best capture the
+dominant macro trends — these drive the Nitter/Camoufox search, replacing
+the static `x.query` when AI is enabled.
 
 Two API flavors are supported, selected by `ai.api_type` in config:
   * "openai"    — OpenAI-compatible Chat Completions  (POST {base_url}/chat/completions)
@@ -16,10 +15,10 @@ Calls are made with plain `requests` (no SDK dependency) so any third-party
 "compatible" endpoint works. Everything is config-driven via `from config import AI`.
 
 Public entry point:
-    summarize_and_extract(trends) -> {"summary": str, "keywords": [str, ...]} | None
+    predict_keywords(trends) -> [str, ...] | None
 
 Returns None when AI is disabled, unconfigured (no key), or the call fails —
-callers fall back to the static query in that case.
+callers fall back to classic semantic search or the static query in that case.
 """
 import json
 import logging
@@ -36,32 +35,10 @@ logger = logging.getLogger(__name__)
 # -------------------------------------------------------------------------
 # Prompt construction
 # -------------------------------------------------------------------------
-# Combined prompt (summary + keywords) used when the AI drives both tasks.
 _SYSTEM_PROMPT = (
     "You are a trend analyst. You are given lists of currently-trending terms "
-    "scraped from Google Trends and Reddit. Identify the dominant real-world "
-    "macro trends and produce concise social-media search keywords for them.\n"
-    "Respond with STRICT JSON only, no prose, no code fences, in exactly this shape:\n"
-    '{"summary": "<one short paragraph>", "keywords": ["<phrase>", ...]}\n'
-    "Keywords must be short, concrete search phrases (e.g. \"World Cup\", "
-    "\"election results\") suitable for a Twitter/Nitter search — not hashtags, "
-    "not full sentences."
-)
-
-# Summary-only prompt (keywords come from elsewhere, e.g. classic search).
-_SUMMARY_SYSTEM_PROMPT = (
-    "You are a trend analyst. Given lists of currently-trending terms from "
-    "Google Trends and Reddit, write one short paragraph summarizing the "
-    "dominant real-world macro trends.\n"
-    "Respond with STRICT JSON only, no prose, no code fences, in exactly this shape:\n"
-    '{"summary": "<one short paragraph>"}'
-)
-
-# Keywords-only prompt (summary handled elsewhere or not wanted).
-_KEYWORDS_SYSTEM_PROMPT = (
-    "You are a trend analyst. Given lists of currently-trending terms from "
-    "Google Trends and Reddit, extract the best concise social-media search "
-    "keywords capturing the dominant macro trends.\n"
+    "scraped from Google Trends and Reddit. Predict the most relevant "
+    "social-media search keywords for the dominant real-world macro trends.\n"
     "Respond with STRICT JSON only, no prose, no code fences, in exactly this shape:\n"
     '{"keywords": ["<phrase>", ...]}\n'
     "Keywords must be short, concrete search phrases (e.g. \"World Cup\", "
@@ -87,11 +64,11 @@ def _render_trends(trends, cap=25):
 
 
 def _build_user_prompt(trends, keyword_count):
-    """User prompt for the combined summary+keywords call."""
+    """User prompt for the keyword-prediction call."""
     return (
         f"Return at most {keyword_count} keywords.\n\n"
         f"{_render_trends(trends)}\n\n"
-        "Summarize the macro trends and return the JSON."
+        "Predict the best search keywords and return the JSON."
     )
 
 
@@ -191,12 +168,9 @@ def _extract_json_object(text):
 
 
 def _normalize(parsed, keyword_count):
-    """Coerce a parsed dict into the {"summary", "keywords"} contract."""
+    """Coerce a parsed dict into the {"keywords": [...]} contract."""
     if not isinstance(parsed, dict):
         return None
-    summary = parsed.get("summary")
-    summary = summary.strip() if isinstance(summary, str) else ""
-
     raw_keywords = parsed.get("keywords")
     keywords = []
     if isinstance(raw_keywords, list):
@@ -210,60 +184,25 @@ def _normalize(parsed, keyword_count):
                 seen.add(key)
                 keywords.append(kw)
     keywords = keywords[:keyword_count]
-
-    if not summary and not keywords:
-        return None
-    return {"summary": summary, "keywords": keywords}
+    return keywords if keywords else None
 
 
 # -------------------------------------------------------------------------
-# AI task functions (each guarded by config; return None on any failure)
+# AI keyword prediction
 # -------------------------------------------------------------------------
-def summarize_and_extract(trends):
-    """
-    Single combined AI call: summarize the day's trends AND extract Nitter
-    search keywords. Returns ``{"summary", "keywords"}`` or ``None`` on failure.
+def predict_keywords(trends):
+    """Predict Nitter search keywords from the day's trends via the AI API.
 
-    Assumes the caller has already checked AI is enabled + keyed; it re-checks
-    the API key defensively.
+    Returns a list of keywords, or None on failure / when unconfigured.
     """
     if not AI.get("api_key"):
-        logger.warning("AI enabled but no API key configured; skipping.")
+        logger.warning("AI enabled but no API key configured; cannot predict keywords.")
         return None
     text = _chat(_SYSTEM_PROMPT, _build_user_prompt(trends, AI["keyword_count"]))
-    result = _normalize(_extract_json_object(text), AI["keyword_count"])
-    if result is None:
-        logger.warning("AI response could not be parsed into summary/keywords: %r", (text or "")[:200])
-    return result
-
-
-def ai_summarize(trends):
-    """AI summary only. Returns a summary string, or None on failure."""
-    if not AI.get("api_key"):
-        logger.warning("AI enabled but no API key configured; cannot summarize.")
-        return None
-    user = f"{_render_trends(trends)}\n\nSummarize the macro trends and return the JSON."
-    text = _chat(_SUMMARY_SYSTEM_PROMPT, user)
-    parsed = _extract_json_object(text)
-    if isinstance(parsed, dict) and isinstance(parsed.get("summary"), str):
-        return parsed["summary"].strip()
-    logger.warning("AI summary could not be parsed: %r", (text or "")[:200])
-    return None
-
-
-def ai_find_keywords(trends):
-    """AI keyword extraction only. Returns a list of keywords, or None on failure."""
-    if not AI.get("api_key"):
-        logger.warning("AI enabled but no API key configured; cannot find keywords.")
-        return None
-    user = (f"Return at most {AI['keyword_count']} keywords.\n\n"
-            f"{_render_trends(trends)}\n\nReturn the JSON.")
-    text = _chat(_KEYWORDS_SYSTEM_PROMPT, user)
-    result = _normalize(_extract_json_object(text), AI["keyword_count"])
-    if result is None:
-        logger.warning("AI keywords could not be parsed: %r", (text or "")[:200])
-        return None
-    return result["keywords"]
+    keywords = _normalize(_extract_json_object(text), AI["keyword_count"])
+    if keywords is None:
+        logger.warning("AI keyword prediction could not be parsed: %r", (text or "")[:200])
+    return keywords
 
 
 # -------------------------------------------------------------------------
@@ -271,62 +210,37 @@ def ai_find_keywords(trends):
 # -------------------------------------------------------------------------
 def analyze_trends(trends):
     """
-    Produce a summary and Nitter search keywords from the day's trends,
-    according to the config flags in the `ai` block.
+    Produce Nitter/X search keywords from the day's trends, according to the
+    config flags in the `ai` block.
 
     Flag logic:
       * ai.enabled = #false
             -> NO AI call. If ai.semantic_search, use classic keyword
                extraction for Nitter keywords; else no keywords (caller falls
-               back to the static x.query). No summary.
-      * ai.enabled = #true
-            -> ai.ai_summarize                : AI writes the summary.
-               ai.use_ai_to_find_nitter_result: AI finds the Nitter keywords.
-               If BOTH are #false: the AI system does nothing useful — log a
-               warning recommending ai.enabled be set to #false. Keywords then
-               fall back to classic semantic search (if enabled) or the static
-               query.
-            When both AI tasks are on, a single combined API call is used
-            (cheaper than two round-trips).
+               back to the static x.query).
+      * ai.enabled = #true, ai.use_ai_to_find_nitter_result = #true
+            -> AI predicts the Nitter keywords (single API call).
+      * ai.enabled = #true, ai.use_ai_to_find_nitter_result = #false
+            -> the AI predictor does nothing; fall back to classic semantic
+               search (if enabled) or the static query.
 
     Keyword resolution order (first non-empty wins):
         AI keywords -> classic semantic search -> [] (caller uses x.query)
 
-    Returns ``{"summary": str, "keywords": [str, ...], "source": str}``. `source`
-    describes where the keywords came from ("ai" | "semantic" | "none").
+    Returns ``{"keywords": [str, ...], "source": str}``. `source` describes
+    where the keywords came from ("ai" | "semantic" | "none").
     """
-    summary = ""
     keywords = []
     source = "none"
 
-    want_summary = bool(AI.get("ai_summarize"))
     want_ai_keywords = bool(AI.get("use_ai_to_find_nitter_result"))
     semantic_on = bool(AI.get("semantic_search"))
 
-    if AI.get("enabled"):
-        if not want_summary and not want_ai_keywords:
-            logger.warning(
-                "ai.enabled is #true but both ai_summarize and "
-                "use_ai_to_find_nitter_result are #false — the AI system will do "
-                "nothing. Recommend setting ai.enabled to #false."
-            )
-        elif want_summary and want_ai_keywords:
-            # Both tasks -> one combined call.
-            combined = summarize_and_extract(trends)
-            if combined:
-                summary = combined["summary"]
-                if combined["keywords"]:
-                    keywords = combined["keywords"]
-                    source = "ai"
-        else:
-            # Exactly one AI task requested.
-            if want_summary:
-                summary = ai_summarize(trends) or ""
-            if want_ai_keywords:
-                kws = ai_find_keywords(trends)
-                if kws:
-                    keywords = kws
-                    source = "ai"
+    if AI.get("enabled") and want_ai_keywords:
+        predicted = predict_keywords(trends)
+        if predicted:
+            keywords = predicted
+            source = "ai"
 
     # Classic semantic fallback for keywords when the AI didn't provide any.
     if not keywords and semantic_on:
@@ -335,4 +249,4 @@ def analyze_trends(trends):
             keywords = classic
             source = "semantic"
 
-    return {"summary": summary, "keywords": keywords, "source": source}
+    return {"keywords": keywords, "source": source}

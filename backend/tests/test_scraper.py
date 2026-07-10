@@ -214,9 +214,9 @@ class TestRunAllScrapes:
         monkeypatch.setattr(scraper, "scrape_x_trends", lambda query=None: [{"title": "x", "score": "1"}])
         # No AI, no semantic keywords -> deterministic empty analysis.
         monkeypatch.setattr(scraper, "analyze_trends",
-                            lambda t: {"summary": "", "keywords": [], "source": "none"})
+                            lambda t: {"keywords": [], "source": "none"})
         out = scraper.run_all_scrapes()
-        assert set(out) == {"macro_trends", "ai_summary", "ai_keywords",
+        assert set(out) == {"macro_trends", "ai_keywords",
                             "keyword_source", "google", "reddit", "x"}
         assert "disabled" in out["google"][0]["title"].lower()
 
@@ -224,7 +224,7 @@ class TestRunAllScrapes:
         monkeypatch.setattr(scraper, "GOOGLE_TRENDS_ENABLED", False)
         monkeypatch.setattr(scraper, "scrape_reddit_popular", lambda: [{"title": "r", "score": "1"}])
         monkeypatch.setattr(scraper, "analyze_trends",
-                            lambda t: {"summary": "S", "keywords": ["World Cup", "Messi"],
+                            lambda t: {"keywords": ["World Cup", "Messi"],
                                        "source": "ai"})
         captured = {}
 
@@ -234,9 +234,8 @@ class TestRunAllScrapes:
 
         monkeypatch.setattr(scraper, "scrape_x_trends", fake_x)
         out = scraper.run_all_scrapes()
-        # Top AI keyword becomes the Nitter query; summary/keywords in payload.
+        # Top AI keyword becomes the Nitter query; keywords in payload.
         assert captured["query"] == "World Cup"
-        assert out["ai_summary"] == "S"
         assert out["ai_keywords"] == ["World Cup", "Messi"]
         assert out["macro_trends"] == ["World Cup", "Messi"]
         assert out["keyword_source"] == "ai"

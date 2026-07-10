@@ -24,10 +24,10 @@ huggingface {
     hf_token "YOUR_HF_TOKEN"
 }
 
-// --- AI summarization / keyword extraction ---------------------------------
-// Uses an LLM to summarize the day's Google+Reddit trends and derive semantic
-// search keywords that drive the Nitter/Camoufox search (replacing the static
-// x.query when available; x.query is the fallback).
+// --- AI Nitter-query predictor --------------------------------------------
+// Uses an LLM to predict the best semantic search keywords from the day's
+// Google+Reddit trends, driving the Nitter/Camoufox search (replacing the
+// static x.query when available; x.query is the fallback).
 ai {
     // Master switch for AI API calls. When #false, NO AI request is made; the
     // pipeline uses classic (non-AI) semantic keyword extraction instead — see
@@ -35,14 +35,9 @@ ai {
     enabled #false
 
     // --- Feature flags -----------------------------------------------------
-    // When `enabled` is #true, these choose what the AI is used for. If BOTH
-    // ai_summarize and use_ai_to_find_nitter_result are #false while `enabled`
-    // is #true, the AI system does nothing useful and a warning is logged
-    // recommending you set `enabled` to #false.
-    //
-    // Summarize the day's trends with the AI API into `ai_summary`.
-    ai_summarize #true
-    // Use the AI API to derive the best Nitter search keywords (semantic).
+    // When `enabled` is #true, use the AI API to predict the best Nitter search
+    // keywords (semantic). When #false while `enabled` is #true, the AI system
+    // does nothing useful — set `enabled` to #false instead.
     use_ai_to_find_nitter_result #true
     // Classic (non-AI) semantic keyword extraction from Google+Reddit. Used to
     // pick Nitter keywords when the AI is NOT finding them (either `enabled`

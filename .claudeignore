@@ -1,0 +1,20 @@
+# Environments & package caches (binaries)
+**/.venv/
+**/venv/
+**/env/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Test / coverage artifacts
+**/.coverage
+**/.pytest_cache/
+**/htmlcov/
+
+# Generated scrape cache (written on every run)
+**/trends_debug.json
+
+# OS noise
+.DS_Store
+Thumbs.db

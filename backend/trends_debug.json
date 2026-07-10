@@ -1,131 +1,187 @@
 {
     "macro_trends": [
-        "AI Tech",
-        "Market Shifts",
-        "Global News"
+        "tomato",
+        "tortoise",
+        "agenzia"
     ],
+    "ai_keywords": [
+        "tomato",
+        "tortoise",
+        "agenzia"
+    ],
+    "keyword_source": "semantic",
     "google": [
         {
-            "title": "ridley scott",
-            "score": "200+",
-            "region": "US"
+            "title": "d\u00eda de la independencia de argentina",
+            "score": "20000+",
+            "region": "AR",
+            "volume": 20000,
+            "abnormality": 10.7516
         },
         {
-            "title": "mormon church",
-            "score": "200+",
-            "region": "US"
+            "title": "resultat brevet 2026 nantes",
+            "score": "20000+",
+            "region": "FR",
+            "volume": 20000,
+            "abnormality": 10.7516
         },
         {
-            "title": "magda linette",
-            "score": "200+",
-            "region": "US"
+            "title": "earthquake baguio",
+            "score": "10000+",
+            "region": "PH",
+            "volume": 10000,
+            "abnormality": 5.1697
         },
         {
-            "title": "mental health",
-            "score": "200+",
-            "region": "US"
+            "title": "gst voucher eligibility",
+            "score": "10000+",
+            "region": "SG",
+            "volume": 10000,
+            "abnormality": 5.1697
         },
         {
-            "title": "the walking dead",
-            "score": "500+",
-            "region": "US"
+            "title": "mortgage rates today",
+            "score": "10000+",
+            "region": "US",
+            "volume": 10000,
+            "abnormality": 5.1697
         },
         {
-            "title": "ind vs afg",
-            "score": "2000+",
-            "region": "US"
-        },
-        {
-            "title": "athletics",
-            "score": "1000+",
-            "region": "US"
-        },
-        {
-            "title": "judge angel kelley park ruling",
-            "score": "2000+",
-            "region": "US"
-        },
-        {
-            "title": "giants game",
-            "score": "500+",
-            "region": "US"
-        },
-        {
-            "title": "flu shots",
+            "title": "agenzia delle entrate",
             "score": "5000+",
-            "region": "US"
+            "region": "IT",
+            "volume": 5000,
+            "abnormality": 2.3788
         },
         {
-            "title": "duke of edinburgh",
-            "score": "200+",
-            "region": "GB"
+            "title": "bonnie tyler",
+            "score": "5000+",
+            "region": "GB",
+            "volume": 5000,
+            "abnormality": 2.3788
         },
         {
-            "title": "duchess of edinburgh",
-            "score": "200+",
-            "region": "GB"
+            "title": "damien thevenot quitte telematin",
+            "score": "5000+",
+            "region": "FR",
+            "volume": 5000,
+            "abnormality": 2.3788
         },
         {
-            "title": "miles davis",
-            "score": "200+",
-            "region": "GB"
+            "title": "france t\u00e9l\u00e9visions",
+            "score": "5000+",
+            "region": "FR",
+            "volume": 5000,
+            "abnormality": 2.3788
         },
         {
-            "title": "united transfer",
-            "score": "2000+",
-            "region": "GB"
+            "title": "kari v\u00e4\u00e4n\u00e4nen",
+            "score": "5000+",
+            "region": "FI",
+            "volume": 5000,
+            "abnormality": 2.3788
         },
         {
-            "title": "action",
-            "score": "500+",
-            "region": "GB"
+            "title": "minister obrony narodowej",
+            "score": "5000+",
+            "region": "PL",
+            "volume": 5000,
+            "abnormality": 2.3788
+        },
+        {
+            "title": "the boroughs",
+            "score": "5000+",
+            "region": "US",
+            "volume": 5000,
+            "abnormality": 2.3788
+        },
+        {
+            "title": "th\u1ebb c\u0103n c\u01b0\u1edbc",
+            "score": "5000+",
+            "region": "VN",
+            "volume": 5000,
+            "abnormality": 2.3788
+        },
+        {
+            "title": "vittorio feltri",
+            "score": "5000+",
+            "region": "IT",
+            "volume": 5000,
+            "abnormality": 2.3788
+        },
+        {
+            "title": "whatsapp",
+            "score": "5000+",
+            "region": "MY",
+            "volume": 5000,
+            "abnormality": 2.3788
         }
     ],
     "reddit": [
         {
-            "title": "That\u2019s exactly what he is.",
-            "score": "\u25b2 Popular"
+            "title": "A fan gifts Dwayne Johnson (The Rock) a vintage wrestling magazine with his grandfather Peter Maivia on the cover.",
+            "score": "\u25b2 Popular",
+            "volume": 0,
+            "abnormality": 0.0
         },
         {
-            "title": "An American photographer filmed a wolf begging for food from a grizzly. The gray wolf saw the meat and in an instant turned into a playful puppy begging for a piece.",
-            "score": "\u25b2 Popular"
+            "title": "A very interesting series of events y'all should read.",
+            "score": "\u25b2 Popular",
+            "volume": 0,
+            "abnormality": 0.0
         },
         {
-            "title": "the dutch are suing steam for being a monopoly right now",
-            "score": "\u25b2 Popular"
+            "title": "Bernie sanders on Xbox layoffs",
+            "score": "\u25b2 Popular",
+            "volume": 0,
+            "abnormality": 0.0
         },
         {
-            "title": "A duck wearing mexico jersey celebrating their win",
-            "score": "\u25b2 Popular"
+            "title": "fr tho",
+            "score": "\u25b2 Popular",
+            "volume": 0,
+            "abnormality": 0.0
         },
         {
-            "title": "Fireworks celebrating the completion of the 566ft Tower of Jesus Christ at the Sagrada Fam\u00edlia",
-            "score": "\u25b2 Popular"
+            "title": "Horses trotting on the beach",
+            "score": "\u25b2 Popular",
+            "volume": 0,
+            "abnormality": 0.0
         },
         {
-            "title": "A cockroach burrowed into my head",
-            "score": "\u25b2 Popular"
+            "title": "I asked for \"no tomato\" and they gave me a tomato bigger than the patty",
+            "score": "\u25b2 Popular",
+            "volume": 0,
+            "abnormality": 0.0
         },
         {
-            "title": "A horse asking another horse to help remove his muzzle so he can eat grass",
-            "score": "\u25b2 Popular"
+            "title": "Left a photocopy of myself on the skate ramp",
+            "score": "\u25b2 Popular",
+            "volume": 0,
+            "abnormality": 0.0
         },
         {
-            "title": "Burger King",
-            "score": "\u25b2 Popular"
+            "title": "meirl",
+            "score": "\u25b2 Popular",
+            "volume": 0,
+            "abnormality": 0.0
         },
         {
-            "title": "Mexicans dancing and singing Gangnam Style with Koreans after South Korea's victory in the World Cup",
-            "score": "\u25b2 Popular"
+            "title": "Newly hatched baby tortoise meets its giant father tortoise.",
+            "score": "\u25b2 Popular",
+            "volume": 0,
+            "abnormality": 0.0
         },
         {
-            "title": "\ud83e\udee1",
-            "score": "\u25b2 Popular"
+            "title": "W after W.",
+            "score": "\u25b2 Popular",
+            "volume": 0,
+            "abnormality": 0.0
         }
     ],
     "x": [
         {
-            "title": "Twitter/X trends rate-limited",
+            "title": "X/Twitter trends temporarily unavailable",
             "score": "Offline"
         }
     ]

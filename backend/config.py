@@ -486,7 +486,7 @@ CAMOUFOX = {
     "default_demo_selector": _str("camoufox.default_demo_selector", env="CAMOUFOX_DEFAULT_DEMO_SELECTOR"),
 }
 
-# --- AI summarization / keyword extraction -------------------------------
+# --- AI Nitter-query predictor -------------------------------------------
 # Grouped for ergonomic import: `from config import AI`.
 #
 # `api_key` is a credential: the AI_API_KEY environment variable takes priority
@@ -510,7 +510,6 @@ if _ai_api_type not in ("openai", "anthropic"):
 
 AI = {
     "enabled": _bool("ai.enabled", env="AI_ENABLED", default=False),
-    "ai_summarize": _bool("ai.ai_summarize", env="AI_SUMMARIZE", default=True),
     "use_ai_to_find_nitter_result": _bool(
         "ai.use_ai_to_find_nitter_result", env="AI_USE_FOR_NITTER", default=True),
     "semantic_search": _bool("ai.semantic_search", env="AI_SEMANTIC_SEARCH", default=True),

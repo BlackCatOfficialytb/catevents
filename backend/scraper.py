@@ -223,6 +223,13 @@ def scrape_x_trends(query=None):
     headers = {"User-Agent": X_USER_AGENT}
 
     for instance in X_MIRROR_INSTANCES:
+        # XCancel (xcancel.com) has no RSS endpoint — it only serves the
+        # JS-rendered HTML search page, so it must be handled by the Camoufox
+        # path below, never via the RSS loop. Skip it here.
+        if instance.lower().startswith("xcancel"):
+            logger.info("Skipping %s in RSS loop (no RSS endpoint).", instance)
+            continue
+
         url = f"https://{instance}/search/rss?q={requests.utils.quote(search_query)}"
         try:
             logger.info(f"Trying mirror: {instance}")
@@ -270,7 +277,6 @@ def run_all_scrapes():
     # becomes the Nitter/Camoufox search query (replacing the static X_QUERY);
     # when no keyword is available, x.query is used.
     analysis = analyze_trends({"google": google, "reddit": reddit})
-    ai_summary = analysis["summary"]
     keywords = analysis["keywords"]
     macro_trends = keywords or ["AI Tech", "Market Shifts", "Global News"]
 
@@ -279,7 +285,6 @@ def run_all_scrapes():
 
     return {
         "macro_trends": macro_trends,
-        "ai_summary": ai_summary,
         "ai_keywords": keywords,
         "keyword_source": analysis["source"],
         "google": google,
