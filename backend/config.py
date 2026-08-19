@@ -462,6 +462,7 @@ REDDIT_TIMEOUT = _int("reddit.request_timeout", env="REDDIT_TIMEOUT")
 
 # --- X / Twitter ---------------------------------------------------------
 X_SCRAPING_ENABLED = _bool("x.enabled", env="X_SCRAPING_ENABLED")
+X_RSS_CHECKER_ENABLED = _bool("x.rss_checker_enabled", env="X_RSS_CHECKER_ENABLED", default=True)
 X_USER_AGENT = _str("x.user_agent", env="X_USER_AGENT")
 X_QUERY = _str("x.query", env="X_QUERY")
 X_TIMEOUT = _int("x.request_timeout", env="X_TIMEOUT")
@@ -569,6 +570,7 @@ if __name__ == "__main__":
         "REDDIT_DEFAULT_SCORE": REDDIT_DEFAULT_SCORE,
         "REDDIT_TIMEOUT": REDDIT_TIMEOUT,
         "X_SCRAPING_ENABLED": X_SCRAPING_ENABLED,
+        "X_RSS_CHECKER_ENABLED": X_RSS_CHECKER_ENABLED,
         "X_USER_AGENT": X_USER_AGENT,
         "X_QUERY": X_QUERY,
         "X_TIMEOUT": X_TIMEOUT,

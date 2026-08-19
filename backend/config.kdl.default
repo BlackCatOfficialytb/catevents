@@ -127,6 +127,10 @@ reddit {
 x {
     // Master switch — flip to #true to re-enable X scraping.
     enabled #false
+    // Toggle the lightweight RSS mirror checker. When #false, X scraping skips
+    // the RSS loop entirely and falls back to the Camoufox stealth browser
+    // directly (if enabled). Useful when you have no working Nitter mirror.
+    rss_checker_enabled #true
     user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
     // Search query appended to each mirror's /search/rss endpoint.
     query "#trending"

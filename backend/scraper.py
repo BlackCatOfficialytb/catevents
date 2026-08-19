@@ -19,7 +19,7 @@ from config import (
     GOOGLE_TRENDS_RESULT_LIMIT, GOOGLE_TRENDS_GEOS,
     REDDIT_ENABLED, REDDIT_URL, REDDIT_USER_AGENT, REDDIT_DEFAULT_SCORE, REDDIT_TIMEOUT,
     X_SCRAPING_ENABLED, X_USER_AGENT, X_QUERY, X_TIMEOUT, X_DEFAULT_SCORE,
-    X_MIRROR_INSTANCES,
+    X_MIRROR_INSTANCES, X_RSS_CHECKER_ENABLED,
     CAMOUFOX,
 )
 from sorting import sort_trends
@@ -222,39 +222,42 @@ def scrape_x_trends(query=None):
     search_query = query or X_QUERY
     headers = {"User-Agent": X_USER_AGENT}
 
-    for instance in X_MIRROR_INSTANCES:
-        # XCancel (xcancel.com) has no RSS endpoint — it only serves the
-        # JS-rendered HTML search page, so it must be handled by the Camoufox
-        # path below, never via the RSS loop. Skip it here.
-        if instance.lower().startswith("xcancel"):
-            logger.info("Skipping %s in RSS loop (no RSS endpoint).", instance)
-            continue
-
-        url = f"https://{instance}/search/rss?q={requests.utils.quote(search_query)}"
-        try:
-            logger.info(f"Trying mirror: {instance}")
-            r = requests.get(url, headers=headers, timeout=X_TIMEOUT)
-
-            if r.status_code != 200:
-                logger.warning(f"Skipping {instance}: Returned status code {r.status_code}")
+    if X_RSS_CHECKER_ENABLED:
+        for instance in X_MIRROR_INSTANCES:
+            # XCancel (xcancel.com) has no RSS endpoint — it only serves the
+            # JS-rendered HTML search page, so it must be handled by the Camoufox
+            # path below, never via the RSS loop. Skip it here.
+            if instance.lower().startswith("xcancel"):
+                logger.info("Skipping %s in RSS loop (no RSS endpoint).", instance)
                 continue
 
-            if "application/xml" not in r.headers.get("Content-Type", "").lower() and "<rss" not in r.text[:200]:
-                logger.warning(f"Skipping {instance}: RSS feed endpoint is disabled.")
+            url = f"https://{instance}/search/rss?q={requests.utils.quote(search_query)}"
+            try:
+                logger.info(f"Trying mirror: {instance}")
+                r = requests.get(url, headers=headers, timeout=X_TIMEOUT)
+
+                if r.status_code != 200:
+                    logger.warning(f"Skipping {instance}: Returned status code {r.status_code}")
+                    continue
+
+                if "application/xml" not in r.headers.get("Content-Type", "").lower() and "<rss" not in r.text[:200]:
+                    logger.warning(f"Skipping {instance}: RSS feed endpoint is disabled.")
+                    continue
+
+                results = parse_xml_feed(r.text, list_tag="item", default_score=X_DEFAULT_SCORE)
+
+                # Honeypot Check: Ensure the first item isn't their "not whitelisted" prompt
+                if results and any("whitelist" in item["title"].lower() for item in results):
+                    logger.warning(f"Skipping {instance}: Returned a 'not whitelisted' honeypot feed.")
+                    continue
+
+                if results:
+                    return results
+            except Exception as e:
+                logger.warning(f"Failed to fetch from mirror {instance}: {str(e)}")
                 continue
-
-            results = parse_xml_feed(r.text, list_tag="item", default_score=X_DEFAULT_SCORE)
-
-            # Honeypot Check: Ensure the first item isn't their "not whitelisted" prompt
-            if results and any("whitelist" in item["title"].lower() for item in results):
-                logger.warning(f"Skipping {instance}: Returned a 'not whitelisted' honeypot feed.")
-                continue
-
-            if results:
-                return results
-        except Exception as e:
-            logger.warning(f"Failed to fetch from mirror {instance}: {str(e)}")
-            continue
+    else:
+        logger.info("RSS checker mode disabled; skipping RSS mirrors for X/Twitter.")
 
     # RSS mirrors all failed — fall back to the Camoufox stealth browser.
     if CAMOUFOX.get("enabled"):

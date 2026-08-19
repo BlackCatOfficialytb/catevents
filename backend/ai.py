@@ -93,7 +93,11 @@ def _call_openai(system, user):
     }
     resp = requests.post(url, headers=headers, json=body, timeout=AI["request_timeout"])
     resp.raise_for_status()
-    data = resp.json()
+    try:
+        data = resp.json()
+    except json.JSONDecodeError:
+        decoder = json.JSONDecoder()
+        data, _ = decoder.raw_decode(resp.text)
     return data["choices"][0]["message"]["content"]
 
 
@@ -114,7 +118,11 @@ def _call_anthropic(system, user):
     }
     resp = requests.post(url, headers=headers, json=body, timeout=AI["request_timeout"])
     resp.raise_for_status()
-    data = resp.json()
+    try:
+        data = resp.json()
+    except json.JSONDecodeError:
+        decoder = json.JSONDecoder()
+        data, _ = decoder.raw_decode(resp.text)
     # Anthropic returns a list of content blocks; concatenate the text ones.
     parts = [b.get("text", "") for b in data.get("content", []) if b.get("type") == "text"]
     return "".join(parts)
@@ -143,7 +151,7 @@ def _extract_json_object(text):
     if not text:
         return None
     # Strip common code-fence wrappers.
-    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
+    fenced = re.search(r"```(?:json)?\s*\n?(\{.*?\})\n?\s*```", text, re.S)
     candidate = fenced.group(1) if fenced else None
     if candidate is None:
         # Fall back to the first '{' ... matching '}' span.
@@ -162,7 +170,9 @@ def _extract_json_object(text):
     if candidate is None:
         return None
     try:
-        return json.loads(candidate)
+        decoder = json.JSONDecoder()
+        obj, _ = decoder.raw_decode(candidate)
+        return obj
     except (ValueError, TypeError):
         return None
 
