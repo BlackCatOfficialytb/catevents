@@ -74,11 +74,14 @@ cache {
 }
 
 // --- HTTP server -----------------------------------------------------------
+// Port is overridden by the PORT env var when present.
+// ADMIN_TOKEN env var: required to access /admin, /run-scrape, and
+// /debug/x-troubleshooting when the server is publicly reachable.
 server {
     // Port is overridden by the PORT env var when present.
     port 5000
     host "0.0.0.0"
-    debug #true
+    debug #false
 }
 
 // --- Background scheduler ---------------------------------------------------

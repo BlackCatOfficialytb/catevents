@@ -6,9 +6,10 @@ import xml.etree.ElementTree as ET
 import time
 import threading
 import traceback
-from flask import Flask, jsonify, render_template, redirect
+import secrets
+from functools import wraps
+from flask import Flask, jsonify, render_template, redirect, session, request
 import requests
-import time
 
 # All configuration lives in config.py (loaded from config.kdl / .default).
 from config import (
@@ -21,6 +22,7 @@ from config import (
     X_SCRAPING_ENABLED, X_USER_AGENT, X_QUERY, X_TIMEOUT, X_DEFAULT_SCORE,
     X_MIRROR_INSTANCES, X_RSS_CHECKER_ENABLED,
     CAMOUFOX,
+    ADMIN_TOKEN,
 )
 from sorting import sort_trends
 from ai import analyze_trends
@@ -32,6 +34,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+# Secret key for session cookies. Falls back to a random ephemeral key per process
+# if not set via env — in production always set SESSION_SECRET_KEY for persistence
+# across workers.
+app.secret_key = os.getenv("SESSION_SECRET_KEY") or secrets.token_hex(32)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 # Most-recent Camoufox X/Twitter troubleshooting bundle (tracebacks + page
 # diagnostics from the last failed run). Exposed via the /debug/x-troubleshooting
@@ -45,6 +53,65 @@ def _record_x_diagnostics(diagnostics):
     _last_x_diagnostics = diagnostics or []
     if _last_x_diagnostics:
         logger.info("Recorded X troubleshooting for %d mirror(s).", len(_last_x_diagnostics))
+
+
+# -------------------------------------------------------------------------
+# SECURITY: admin authentication
+# -------------------------------------------------------------------------
+# When ADMIN_TOKEN is set, admin endpoints (/, /admin, /run-scrape,
+# /debug/x-troubleshooting) require either an active session (set by logging in
+# via /admin/login) or a bearer token (Authorization: Bearer <ADMIN_TOKEN>).
+# When ADMIN_TOKEN is NOT set, auth is skipped with a warning — convenient for
+# local development only. Never deploy without setting ADMIN_TOKEN.
+_warned_no_token = False
+
+
+def _is_authed():
+    """Return True if the current request is authenticated as admin."""
+    if session.get("admin_authed"):
+        return True
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer ") and auth_header[7:] == ADMIN_TOKEN:
+        return True
+    return False
+
+
+def require_admin(f):
+    """Decorator protecting admin endpoints behind a session or bearer token."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        global _warned_no_token
+        if not ADMIN_TOKEN:
+            if not _warned_no_token:
+                logger.warning("ADMIN_TOKEN not set — admin endpoints are UNPROTECTED. "
+                               "Set ADMIN_TOKEN env var for production deployments.")
+                _warned_no_token = True
+            return f(*args, **kwargs)
+        if _is_authed():
+            return f(*args, **kwargs)
+        # Unauthenticated — redirect to login for browser, 401 for API.
+        if request.path in ("/admin", "/", "/admin/login", "/admin/logout"):
+            return redirect("/admin/login")
+        return jsonify({"status": "Failed", "error": "Authentication required"}), 401
+    return decorated
+
+
+@app.after_request
+def _set_security_headers(resp):
+    """Attach baseline security headers to every response."""
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["X-Frame-Options"] = "DENY"
+    resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    resp.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.tailwindcss.com; "
+        "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' https://huggingface.co https://api.openai.com"
+    )
+    resp.headers["X-XSS-Protection"] = "0"  # modern browsers: rely on CSP instead
+    return resp
+
 
 
 # -------------------------------------------------------------------------
@@ -396,8 +463,6 @@ def health_check():
 
     Supports HEAD (cheap ping — no body sent) and GET (returns JSON status).
     """
-    from flask import request
-
     if request.method == "HEAD":
         # HEAD responses must not include a body; an empty 200 is enough.
         return ("", 200)
@@ -409,9 +474,14 @@ def health_check():
     }), 200
 
 @app.route("/debug/x-troubleshooting", methods=["GET"])
+@require_admin
 def x_troubleshooting():
     """Return the troubleshooting bundle (tracebacks + page diagnostics) from
-    the most recent failed Camoufox X/Twitter scrape."""
+    the most recent failed Camoufox X/Twitter scrape.
+
+    Requires admin authentication — the bundle may contain internal URLs,
+    error messages, and page diagnostics that should not be publicly exposed.
+    """
     return jsonify({
         "x_scraping_enabled": X_SCRAPING_ENABLED,
         "mirror_count": len(_last_x_diagnostics),
@@ -420,9 +490,46 @@ def x_troubleshooting():
 
 @app.route("/", methods=["GET"])
 def index():
-    return redirect("/admin")
+    # If admin auth is disabled (no ADMIN_TOKEN), go straight to /admin.
+    # If enabled and not authenticated, send to login; otherwise to dashboard.
+    if not ADMIN_TOKEN:
+        return redirect("/admin")
+    if session.get("admin_authed"):
+        return redirect("/admin")
+    return redirect("/admin/login")
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    """Simple login page that sets a session cookie upon correct token.
+
+    The token is read from the ADMIN_TOKEN environment variable. No passwords
+    are stored; this is a single shared secret for the admin interface.
+    """
+    if request.method == "POST":
+        submitted = request.form.get("token", "")
+        if submitted and submitted == ADMIN_TOKEN:
+            session["admin_authed"] = True
+            return redirect("/admin")
+        return render_template(
+            "login.html",
+            error="Invalid token",
+            repo_id=REPO_ID,
+        ), 401
+
+    # If already authenticated, skip the login form.
+    if session.get("admin_authed"):
+        return redirect("/admin")
+
+    return render_template("login.html", error=None, repo_id=REPO_ID), 200
+
+@app.route("/admin/logout", methods=["POST"])
+def admin_logout():
+    """Clear the admin session."""
+    session.pop("admin_authed", None)
+    return redirect("/admin/login")
 
 @app.route("/admin", methods=["GET"])
+@require_admin
 def admin_dashboard():
     latest_data = get_latest_scraped_data()
     raw_json_str = json.dumps(latest_data, indent=4)
@@ -436,10 +543,21 @@ def admin_dashboard():
         raw_json=raw_json_str
     )
 
-@app.route("/run-scrape", methods=["GET"])
+@app.route("/run-scrape", methods=["POST"])
+@require_admin
 def handle_scrape_and_upload():
+    """Trigger the scraping pipeline on demand.
+
+    Changed from GET to POST to prevent CSRF via simple image tags / link
+    preloads. Protected by @require_admin. Error messages are logged
+    server-side and a generic message returned to the client to prevent
+    information disclosure (CWE-209).
+    """
     try:
-        payload = execute_scrape_and_upload()
+        execute_scrape_and_upload()
         return jsonify({"status": "Success", "message": "Scraped and updated successfully"}), 200
     except Exception as e:
-        return jsonify({"status": "Failed", "error": str(e)}), 500
+        # Log the full exception server-side for debugging, but return only
+        # a generic message to the client to avoid leaking internal details.
+        logger.error("Scrape pipeline failed: %s", e, exc_info=True)
+        return jsonify({"status": "Failed", "error": "Internal error — check server logs"}), 500

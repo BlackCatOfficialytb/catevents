@@ -42,6 +42,7 @@ class TestXCancelNotHitViaRss:
     def test_xcancel_rss_skipped_but_other_mirrors_tried(self, monkeypatch):
         """xcancel is bypassed in the loop; a working RSS mirror still serves."""
         monkeypatch.setattr(scraper, "X_SCRAPING_ENABLED", True)
+        monkeypatch.setattr(scraper, "X_RSS_CHECKER_ENABLED", True)
         monkeypatch.setattr(scraper, "X_MIRROR_INSTANCES",
                             ["xcancel.com", "nitter.net"])
         monkeypatch.setattr(scraper, "CAMOUFOX", {**scraper.CAMOUFOX, "enabled": False})

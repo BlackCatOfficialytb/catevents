@@ -131,6 +131,7 @@ class TestScrapeX:
 
     def test_rss_success(self, monkeypatch):
         monkeypatch.setattr(scraper, "X_SCRAPING_ENABLED", True)
+        monkeypatch.setattr(scraper, "X_RSS_CHECKER_ENABLED", True)
         monkeypatch.setattr(scraper, "X_MIRROR_INSTANCES", ["nitter.example"])
         monkeypatch.setattr(scraper.requests, "get", lambda *a, **k: _FakeResp(RSS_SAMPLE))
         out = scraper.scrape_x_trends()
@@ -192,7 +193,7 @@ class TestRoutes:
 
     def test_run_scrape_success(self, client, monkeypatch):
         monkeypatch.setattr(scraper, "execute_scrape_and_upload", lambda: {"ok": True})
-        resp = client.get("/run-scrape")
+        resp = client.post("/run-scrape")
         assert resp.status_code == 200
         assert resp.get_json()["status"] == "Success"
 
@@ -201,9 +202,35 @@ class TestRoutes:
             raise Exception("kaboom")
 
         monkeypatch.setattr(scraper, "execute_scrape_and_upload", boom)
-        resp = client.get("/run-scrape")
+        resp = client.post("/run-scrape")
         assert resp.status_code == 500
         assert resp.get_json()["status"] == "Failed"
+        # Error message must be generic — no internal details leaked to client.
+        assert "kaboom" not in resp.get_json().get("error", "")
+        assert "Internal error" in resp.get_json()["error"]
+
+    def test_run_scrape_rejects_get(self, client, monkeypatch):
+        """GET must no longer trigger the scrape pipeline (CSRF fix)."""
+        monkeypatch.setattr(scraper, "execute_scrape_and_upload", lambda: {"ok": True})
+        resp = client.get("/run-scrape")
+        assert resp.status_code == 405
+
+    def test_security_headers_present(self, client):
+        resp = client.get("/health")
+        assert resp.headers["X-Content-Type-Options"] == "nosniff"
+        assert resp.headers["X-Frame-Options"] == "DENY"
+        assert "Content-Security-Policy" in resp.headers
+
+    def test_login_page_accessible(self, client):
+        resp = client.get("/admin/login")
+        assert resp.status_code == 200
+
+    def test_run_scrape_requires_auth_when_token_set(self, client, monkeypatch):
+        monkeypatch.setattr(scraper, "ADMIN_TOKEN", "secret-token")
+        monkeypatch.setattr(scraper, "require_admin", scraper.require_admin)
+        monkeypatch.setattr(scraper, "execute_scrape_and_upload", lambda: {"ok": True})
+        resp = client.post("/run-scrape")
+        assert resp.status_code == 401
 
 
 # ------------------------------------------------- run_all_scrapes structure

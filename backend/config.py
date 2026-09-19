@@ -438,6 +438,11 @@ SERVER_PORT = _int("server.port", env="PORT")
 SERVER_HOST = _str("server.host", env="SERVER_HOST")
 SERVER_DEBUG = _bool("server.debug", env="SERVER_DEBUG")
 
+# Admin authentication token for protected endpoints (/admin, /run-scrape,
+# /debug/x-troubleshooting). Required when the server is publicly reachable.
+# Read purely from the environment — never stored in config files.
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
+
 # --- Scheduler -----------------------------------------------------------
 SCHEDULER_ENABLED = _bool("scheduler.enabled", env="SCHEDULER_ENABLED")
 SCHEDULER_BOOT_DELAY = _int("scheduler.boot_delay_seconds", env="SCHEDULER_BOOT_DELAY")
@@ -552,9 +557,10 @@ if __name__ == "__main__":
         "REPO_ID": REPO_ID,
         "HF_REMOTE_FILENAME": HF_REMOTE_FILENAME,
         "LOCAL_CACHE_FILE": LOCAL_CACHE_FILE,
-        "SERVER_PORT": SERVER_PORT,
+         "SERVER_PORT": SERVER_PORT,
         "SERVER_HOST": SERVER_HOST,
         "SERVER_DEBUG": SERVER_DEBUG,
+        "ADMIN_TOKEN_set": bool(ADMIN_TOKEN),
         "SCHEDULER_ENABLED": SCHEDULER_ENABLED,
         "SCHEDULER_BOOT_DELAY": SCHEDULER_BOOT_DELAY,
         "SCHEDULER_INTERVAL": SCHEDULER_INTERVAL,

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login — CatEvents</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center font-sans">
+    <div class="bg-slate-800 p-8 rounded-xl border border-slate-700 shadow-lg w-96">
+        <h1 class="text-xl font-bold text-indigo-400 mb-6">Admin Login</h1>
+        {% if repo_id %}
+        <p class="text-xs text-slate-500 mb-4">Target: <span class="text-slate-400">{{ repo_id }}</span></p>
+        {% endif %}
+        {% if error %}
+        <div class="bg-red-950 border border-red-800 text-red-300 px-3 py-2 rounded text-sm mb-4">{{ error }}</div>
+        {% endif %}
+        <form method="POST" action="/admin/login" class="space-y-4">
+            <div>
+                <label class="text-xs font-semibold text-slate-400 uppercase">Admin Token</label>
+                <input type="password" name="token" required
+                       class="w-full px-3 py-2 mt-1 rounded bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-indigo-500">
+            </div>
+            <button type="submit"
+                    class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg transition">
+                Login
+            </button>
+        </form>
+    </div>
+</body>
+</html>
