@@ -1,0 +1,21 @@
+# Al Jazeera - English News - XML Adapter
+# Region: Qatar
+# Source: https://www.aljazeera.com/xml/rss/all.xml
+
+url = "https://www.aljazeera.com/xml/rss/all.xml"
+
+# XML adapter tags - standard RSS 2.0 <item> structure.
+list_tag = "item"
+title_tag = "title"
+score_tag = ""
+default_score = "Al Jazeera - English News"
+
+# HTTP metadata.
+user_agent = "CatEventsBot/1.0"
+timeout = 15
+
+# Per-feed cap on parsed items.
+item_limit = 10
+
+# Master switch - set to false to silence this feed without removing it.
+enabled = true

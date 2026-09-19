@@ -1,0 +1,21 @@
+# The Guardian - World News - XML Adapter
+# Region: United Kingdom
+# Source: https://www.theguardian.com/world/rss
+
+url = "https://www.theguardian.com/world/rss"
+
+# XML adapter tags - standard RSS 2.0 <item> structure.
+list_tag = "item"
+title_tag = "title"
+score_tag = ""
+default_score = "The Guardian - World News"
+
+# HTTP metadata.
+user_agent = "CatEventsBot/1.0"
+timeout = 15
+
+# Per-feed cap on parsed items.
+item_limit = 10
+
+# Master switch - set to false to silence this feed without removing it.
+enabled = true

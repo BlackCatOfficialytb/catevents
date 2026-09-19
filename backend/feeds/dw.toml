@@ -1,0 +1,21 @@
+# Deutsche Welle (DW) - News - XML Adapter
+# Region: Germany
+# Source: https://rss.dw.com/xml/rss-en-all
+
+url = "https://rss.dw.com/xml/rss-en-all"
+
+# XML adapter tags - standard RSS 2.0 <item> structure.
+list_tag = "item"
+title_tag = "title"
+score_tag = ""
+default_score = "Deutsche Welle (DW) - News"
+
+# HTTP metadata.
+user_agent = "CatEventsBot/1.0"
+timeout = 15
+
+# Per-feed cap on parsed items.
+item_limit = 10
+
+# Master switch - set to false to silence this feed without removing it.
+enabled = true

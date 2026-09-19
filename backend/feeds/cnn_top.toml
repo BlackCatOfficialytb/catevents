@@ -1,0 +1,21 @@
+# CNN - Top Stories - XML Adapter
+# Region: United States
+# Source: http://rss.cnn.com/rss/cnn_latest.rss
+
+url = "http://rss.cnn.com/rss/cnn_latest.rss"
+
+# XML adapter tags - standard RSS 2.0 <item> structure.
+list_tag = "item"
+title_tag = "title"
+score_tag = ""
+default_score = "CNN - Top Stories"
+
+# HTTP metadata.
+user_agent = "CatEventsBot/1.0"
+timeout = 15
+
+# Per-feed cap on parsed items.
+item_limit = 10
+
+# Master switch - set to false to silence this feed without removing it.
+enabled = true

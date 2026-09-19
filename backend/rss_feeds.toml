@@ -1,0 +1,26 @@
+# =============================================================================
+# catevents — RSS Feed Registry
+#
+# Each key is a feed ID; the value is a path (relative to this file's
+# directory) to a per-feed TOML config that acts as the "XML adapter" for
+# that feed. The adapter describes how the generic XML parser should extract
+# items from that feed's specific element names (list_tag, title_tag, etc.).
+#
+# To add a new feed:
+#   1. Drop a TOML adapter file under feeds/ (see feeds/bbc.toml for reference)
+#   2. Add a line below: "myfeed" = "feeds/myfeed.toml"
+#
+# No code changes required — toml_config_reader.py discovers feeds from this
+# registry at import time.
+# =============================================================================
+
+"bbc"        = "feeds/bbc.toml"
+"bbc_world"  = "feeds/bbc_world.toml"
+"nyt_world"  = "feeds/nyt_world.toml"
+"nyt_top"    = "feeds/nyt_top.toml"
+"guardian"   = "feeds/guardian.toml"
+"cnn_world"  = "feeds/cnn_world.toml"
+"cnn_top"    = "feeds/cnn_top.toml"
+"dw"         = "feeds/dw.toml"
+"aljazeera"  = "feeds/aljazeera.toml"
+"npr"        = "feeds/npr.toml"
